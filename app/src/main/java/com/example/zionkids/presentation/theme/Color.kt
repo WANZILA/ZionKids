@@ -1,4 +1,4 @@
-package com.example.zionkids.ui.theme
+package com.example.zionkids.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
