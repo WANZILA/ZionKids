@@ -9,6 +9,7 @@ import com.example.zionkids.data.model.Kid
 @Database(entities = [Kid::class],   version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
+    abstract  fun kidsDao(): KidsDao
     companion object {
         @Volatile
         private  var INSTANCE : AppDatabase? = null
@@ -19,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
                     if (INSTANCE == null){
                         INSTANCE = Room.databaseBuilder(
                                                 context.applicationContext,
-                                                AppDatabase::class.java, "ZionKids"
+                                                AppDatabase::class.java, "zion_kids_db"
                                             ).fallbackToDestructiveMigration(false).build()
                     }
                 }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.zionkids.presentation.screens.HomeScreen
+import com.example.zionkids.presentation.screens.KidRegistrationScreen
 import com.example.zionkids.presentation.theme.ZionKidsTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ZionKidsTheme {
-                HomeScreen()
+                KidRegistrationScreen()
             }
         }
     }

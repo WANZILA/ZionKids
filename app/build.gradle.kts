@@ -62,6 +62,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     kspAndroidTest(libs.hilt.android.compiler)
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
