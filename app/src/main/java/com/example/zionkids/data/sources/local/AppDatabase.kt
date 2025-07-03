@@ -4,12 +4,15 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.zionkids.data.model.Kid
+import androidx.room.TypeConverters
+import com.example.zionkids.core.Utils.Converters
+import com.example.zionkids.data.model.Child
 
-@Database(entities = [Kid::class],   version = 1, exportSchema = false)
+@Database(entities = [Child::class],   version = 1, exportSchema = false)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract  fun kidsDao(): KidsDao
+    abstract  fun childrenDao(): ChildrenDao
     companion object {
         @Volatile
         private  var INSTANCE : AppDatabase? = null

@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     kspAndroidTest(libs.hilt.android.compiler)
+    // the library provides the hiltViewModel() function used in Composables.
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
 

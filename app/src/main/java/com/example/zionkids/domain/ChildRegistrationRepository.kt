@@ -1,10 +1,10 @@
-package com.example.zionkids.domain
+package com.example.zionChilds.domain
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.zionkids.data.model.Kid
+import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.sources.local.AppDatabase
-import com.example.zionkids.data.sources.local.KidsDao
+import com.example.zionkids.data.sources.local.ChildrenDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -13,29 +13,29 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class KidRegistrationRepository @Inject constructor(
+class ChildRegistrationRepository @Inject constructor(
     val context: Context,
 ) : SharedPreferences.OnSharedPreferenceChangeListener {
     override fun onSharedPreferenceChanged(p0: SharedPreferences?, p1: String?) {}
 
-    private var kidsDao: KidsDao?
+    private var childrenDao: ChildrenDao?
 
     init {
         val appDb = AppDatabase.getDatabase(context)
-        kidsDao = appDb?.kidsDao()
+        childrenDao = appDb?.childrenDao()
     }
 
-    fun fetchAllKids(): Flow<List<Kid>> = flow{
-        val kids: List<Kid>?
+    fun fetchAllChilds(): Flow<List<Child>> = flow{
+        val Childs: List<Child>?
         withContext(Dispatchers.IO){
-            kids = kidsDao?.getAllKids()
+            Childs = childrenDao?.getAllChildren()
         }
-        emit(kids!!)
+        emit(Childs!!)
     }
 
-    suspend fun  saveKid(kid: Kid){
+    suspend fun  saveChild(Child: Child){
         withContext(Dispatchers.IO){
-            kidsDao?.insertKid(kid)
+            childrenDao?.insertChild(Child)
         }
     }
 }

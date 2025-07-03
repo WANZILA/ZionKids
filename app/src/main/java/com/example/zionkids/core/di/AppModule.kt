@@ -1,7 +1,7 @@
 package com.example.zionkids.core.di
 
 import android.content.Context
-import com.example.zionkids.domain.KidRegistrationRepository
+import com.example.zionChilds.domain.ChildRegistrationRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,5 +16,5 @@ class AppModule {
     @Singleton
     fun provideKidRegistrationRepository(
         @ApplicationContext context: Context,
-    ): KidRegistrationRepository = KidRegistrationRepository(context)
+    ): ChildRegistrationRepository = ChildRegistrationRepository(context)
 }
