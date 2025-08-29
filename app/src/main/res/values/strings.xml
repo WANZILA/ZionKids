@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Zion Kids</string>
+    <string name="company_logo">Organization Logo</string>
+    <string name="back_button">Back Arrow</string>
+    <string name="events">Events</string>
+    <string name="cd_open_menu">Open menu</string>
 </resources>

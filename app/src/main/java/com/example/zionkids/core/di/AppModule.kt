@@ -1,7 +1,7 @@
 package com.example.zionkids.core.di
 
 import android.content.Context
-import com.example.zionChilds.domain.ChildRegistrationRepository
+import com.example.zionkids.domain.repositories.offline.ChildRegistrationRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -10,11 +10,11 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
-@Module(includes = [NetworkModule::class])
+@Module(includes = [NetworkModule::class, RepositoryModule::class])
 class AppModule {
-    @Provides
-    @Singleton
-    fun provideKidRegistrationRepository(
-        @ApplicationContext context: Context,
-    ): ChildRegistrationRepository = ChildRegistrationRepository(context)
+//    @Provides
+//    @Singleton
+//    fun provideKidRegistrationRepository(
+//        @ApplicationContext context: Context,
+//    ): ChildRegistrationRepository = ChildRegistrationRepository(context)
 }

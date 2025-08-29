@@ -2,10 +2,16 @@ package com.example.zionkids.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Core Brand Palette
+val LimeGreen     = Color(0xFFA4C639) // bright, energetic green
+val GoldenOrange  = Color(0xFFFFA500) // golden yellow / orange
+//val DeepGreen     = Color(0xFF162D0D) // dark, deep green
+val DeepGreen     = Color(0xFF002B1D)
+val Black         = Color(0xFF000000) // pure black
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Supporting neutrals (optional, keep if needed)
+val SoftOffWhite  = Color(0xFFF9F7F3) // for onPrimary/onSurface text
+
+// Error tones
+val ErrorRed      = Color(0xFFB00020)
+val OnErrorRed    = Color(0xFFFFFFFF)

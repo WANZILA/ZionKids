@@ -1,43 +1,35 @@
 package com.example.zionkids.core.Utils
 
 import androidx.room.TypeConverter
-import com.example.zionkids.data.model.EducationPreference
-import com.example.zionkids.data.model.Individual
-import com.example.zionkids.data.model.Person
-import com.example.zionkids.data.model.RegistrationStatus
-import com.example.zionkids.data.model.RelationShip
-import com.example.zionkids.data.model.Reply
+import com.example.zionkids.data.model.*
+import com.google.firebase.Timestamp
 
 class Converters {
-    @TypeConverter
-    fun fromEducationPreference(value: EducationPreference): String = value.name
 
     @TypeConverter
-    fun toEducationPreference(value: String): EducationPreference =
-        EducationPreference.valueOf(value)
+    fun fromTimestamp(ts: Timestamp?): Long? = ts?.seconds
 
     @TypeConverter
-    fun fromReply(value: Reply): String = value.name
+    fun toTimestamp(seconds: Long?): Timestamp? = seconds?.let { Timestamp(it, 0) }
 
-    @TypeConverter
-    fun toReply(value: String): Reply = Reply.valueOf(value)
+    @TypeConverter fun fromIndividual(v: Individual?): String? = v?.name
+    @TypeConverter fun toIndividual(s: String?): Individual =
+        s?.let { runCatching { Individual.valueOf(it) }.getOrNull() } ?: Individual.UNCLE
 
-    @TypeConverter
-    fun fromRelationShip(value: RelationShip): String = value.name
+    @TypeConverter fun fromEducationPreference(v: EducationPreference?): String? = v?.name
+    @TypeConverter fun toEducationPreference(s: String?): EducationPreference =
+        s?.let { runCatching { EducationPreference.valueOf(it) }.getOrNull() } ?: EducationPreference.NONE
 
-    @TypeConverter
-    fun toRelationShip(value: String): RelationShip = RelationShip.valueOf(value)
+    @TypeConverter fun fromReply(v: Reply?): String? = v?.name
+    @TypeConverter fun toReply(s: String?): Reply =
+        s?.let { runCatching { Reply.valueOf(it) }.getOrNull() } ?: Reply.NO
 
-    @TypeConverter
-    fun fromPerson(value: Individual): String = value.name
+    // ✅ renamed enum
+    @TypeConverter fun fromRelationship(v: Relationship?): String? = v?.name
+    @TypeConverter fun toRelationship(s: String?): Relationship =
+        s?.let { runCatching { Relationship.valueOf(it) }.getOrNull() } ?: Relationship.NONE
 
-    @TypeConverter
-    fun toPerson(value: String): Individual = Individual.valueOf(value)
-
-    @TypeConverter
-    fun fromRegistrationStatus(value: RegistrationStatus): String = value.name
-
-    @TypeConverter
-    fun toRegistrationStatus(value: String): RegistrationStatus =
-        RegistrationStatus.valueOf(value)
+    @TypeConverter fun fromRegistrationStatus(v: RegistrationStatus?): String? = v?.name
+    @TypeConverter fun toRegistrationStatus(s: String?): RegistrationStatus =
+        s?.let { runCatching { RegistrationStatus.valueOf(it) }.getOrNull() } ?: RegistrationStatus.BASICINFOR
 }

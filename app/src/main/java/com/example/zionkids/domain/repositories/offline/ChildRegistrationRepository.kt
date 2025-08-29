@@ -1,4 +1,4 @@
-package com.example.zionChilds.domain
+package com.example.zionkids.domain.repositories.offline
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -21,20 +21,20 @@ class ChildRegistrationRepository @Inject constructor(
     private var childrenDao: ChildrenDao?
 
     init {
-        val appDb = AppDatabase.getDatabase(context)
+        val appDb = AppDatabase.Companion.getDatabase(context)
         childrenDao = appDb?.childrenDao()
     }
 
-    fun fetchAllChilds(): Flow<List<Child>> = flow{
+    fun fetchAllChilds(): Flow<List<Child>> = flow {
         val Childs: List<Child>?
-        withContext(Dispatchers.IO){
+        withContext(Dispatchers.IO) {
             Childs = childrenDao?.getAllChildren()
         }
         emit(Childs!!)
     }
 
     suspend fun  saveChild(Child: Child){
-        withContext(Dispatchers.IO){
+        withContext(Dispatchers.IO) {
             childrenDao?.insertChild(Child)
         }
     }

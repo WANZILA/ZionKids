@@ -33,53 +33,53 @@ fun KidRegistrationScreen(
 
     viewModel: KidRegistrationViewModel = hiltViewModel()
 ) {
-    val kids by viewModel.kids.collectAsState(initial = emptyList())
-    val uiState by viewModel.uiState.collectAsState()
-
-    var fetchData by rememberSaveable { mutableStateOf(0)}
-
-    if(fetchData == 0){
-        viewModel.fetchData()
-        fetchData = fetchData.inc()
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Kids Registration")})
-        },
-        content = {
-            Box(modifier = Modifier.padding(it))
-            {
-                when (val state = uiState){
-                    is KidRegisUiState.Error -> {
-                        ErrorState(
-                            errorMessage = state.errorMessage,
-                            onRetry = {}
-                        )
-                    }
-
-                    KidRegisUiState.Loaded -> LoadingState("Loading data ..")
-
-                    KidRegisUiState.Loading -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            contentPadding =  PaddingValues(horizontal = 10.dp)
-                        ) {
-                            items(kids) { kid ->
-                                ChildItem(
-                                    kid = kid,
-                                    onClicked = {},
-                                    )
-                            }
-                        }
-                    }
-
-                    KidRegisUiState.Editing -> KidRegistrationForm(viewModel)
-                }
-            }
-        }
-    )
+//    val kids by viewModel.kids.collectAsState(initial = emptyList())
+//    val uiState by viewModel.uiState.collectAsState()
+//
+//    var fetchData by rememberSaveable { mutableStateOf(0)}
+//
+//    if(fetchData == 0){
+//        viewModel.fetchData()
+//        fetchData = fetchData.inc()
+//    }
+//
+//    Scaffold(
+//        topBar = {
+//            TopAppBar(title = { Text("Kids Registration")})
+//        },
+//        content = {
+//            Box(modifier = Modifier.padding(it))
+//            {
+//                when (val state = uiState){
+//                    is KidRegisUiState.Error -> {
+//                        ErrorState(
+//                            errorMessage = state.errorMessage,
+//                            onRetry = {}
+//                        )
+//                    }
+//
+//                    KidRegisUiState.Loaded -> LoadingState("Loading data ..")
+//
+//                    KidRegisUiState.Loading -> {
+//                        LazyColumn(
+//                            modifier = Modifier.fillMaxSize(),
+//                            verticalArrangement = Arrangement.spacedBy(10.dp),
+//                            contentPadding =  PaddingValues(horizontal = 10.dp)
+//                        ) {
+//                            items(kids) { kid ->
+//                                ChildItem(
+//                                    kid = kid,
+//                                    onClicked = {},
+//                                    )
+//                            }
+//                        }
+//                    }
+//
+//                    KidRegisUiState.Editing -> KidRegistrationForm(viewModel)
+//                }
+//            }
+//        }
+//    )
 
 //    LaunchedEffect(Unit) {
 //        viewModel.fetchData()

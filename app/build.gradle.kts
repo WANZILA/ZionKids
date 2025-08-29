@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.dagger.hilt)
     id("com.google.devtools.ksp")
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -51,6 +52,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation(libs.firebase.database)
+    implementation(libs.firebase.firestore)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,4 +79,26 @@ dependencies {
     implementation(libs.squareup.retrofit)
     implementation(libs.squareup.retrofit.gson)
     implementation(libs.squareup.okhttp3.logging)
+
+    //viewModel
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+
+    //tracking data from remote server
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    // images in json
+    implementation ("io.coil-kt:coil-compose:2.2.2")
+
+    //Navigation  2.7.6
+    implementation ("androidx.navigation:navigation-compose:2.8.7")
+
+    //extended Icons
+    implementation ("androidx.compose.material:material-icons-extended:1.5.4")
+    //system UI Controller
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.27.0")
+
+    //croping images
+    implementation("com.github.CanHub:Android-Image-Cropper:4.0.0")
+
 }
