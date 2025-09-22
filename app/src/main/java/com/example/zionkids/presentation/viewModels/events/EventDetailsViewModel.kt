@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.domain.repositories.online.EventsRepository
+import com.example.zionkids.presentation.viewModels.children.ChildDetailsViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,18 +66,21 @@ class EventDetailsViewModel @Inject constructor(
      * Optimistic delete: emits a Deleted event immediately and enqueues Firestore delete.
      * Firestore handles offline persistence & sync; timestamps remain on the Event model.
      */
-    fun deleteEventOptimistic() {
-        val id = _ui.value.event?.eventId ?: return
-        // Emit navigation/deletion signal right away
-        viewModelScope.launch { _events.send(EventDetailsEvent.Deleted) }
-        // Queue delete (offline-friendly); surface any immediate exception as a UI event
-        runCatching { repo.enqueueDelete(id) }
-            .onFailure { e ->
-                viewModelScope.launch {
-                    _events.send(EventDetailsEvent.Error("Delete failed: ${e.message}"))
-                }
-            }
+    fun deleteChildOptimistic() = viewModelScope.launch {
+        val id = _ui.value.event?.eventId ?: return@launch
+        _ui.value = _ui.value.copy(deleting = true, error = null)
+
+        try {
+            repo.deleteEventAndAttendances(id)   // suspends, awaits completion
+            _events.trySend(EventDetailsViewModel.EventDetailsEvent.Deleted)  // include the id
+        } catch (e: Exception) {
+            _ui.value = _ui.value.copy(error = e.message ?: "Failed to delete")
+            _events.trySend(EventDetailsViewModel.EventDetailsEvent.Error("Failed to delete: ${e.message ?: ""}".trim()))
+        } finally {
+            _ui.value = _ui.value.copy(deleting = false)
+        }
     }
+
 
     fun refresh(eventId: String) = load(eventId)
 }

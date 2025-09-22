@@ -2,56 +2,25 @@ package com.example.zionkids.presentation.screens.children
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleLeft
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.data.model.Child
+import com.example.zionkids.presentation.screens.widgets.DeleteIconWithConfirm
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.children.ChildDetailsViewModel
+import com.google.firebase.Timestamp
+import kotlinx.coroutines.flow.collect
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -60,49 +29,79 @@ import java.util.Locale
 fun ChildDetailsScreen(
     childIdArg: String,
     onEdit: (String) -> Unit,
-    navigateUp: () -> Unit,           // call navController::popBackStack from the caller
-    vm: ChildDetailsViewModel = hiltViewModel()
+    toChildrenDashboard: () -> Unit,
+    toChildrenList: () -> Unit,
+    vm: ChildDetailsViewModel = hiltViewModel(),
+    authVM: AuthViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var showConfirm by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val authUI by authVM.ui.collectAsStateWithLifecycle()
+    val canEditChild = authUI.perms.canEditChild
+    val canDeleteChild= authUI.perms.canDeleteEvent
     // load once
     LaunchedEffect(childIdArg) { vm.load(childIdArg) }
 
-    LaunchedEffect(Unit) {
+//    LaunchedEffect(Unit) {
+//        vm.events.collect { ev ->
+//            when (ev) {
+//                is ChildDetailsViewModel.Event.Deleted -> toChildrenList()
+//                is ChildDetailsViewModel.Event.Error -> snackbarHostState.showSnackbar(ev.msg)
+//            }
+//        }
+//    }
+    LaunchedEffect(vm) {
         vm.events.collect { ev ->
             when (ev) {
-                is ChildDetailsViewModel.Event.Deleted -> navigateUp()
-                is ChildDetailsViewModel.Event.Error -> snackbarHostState.showSnackbar(ev.msg)
+                is ChildDetailsViewModel.Event.Deleted -> {
+                    snackbarHostState.showSnackbar("Child deleted")
+                    toChildrenList()
+                }
+                is ChildDetailsViewModel.Event.Error -> {
+                    snackbarHostState.showSnackbar(ev.msg)
+                }
             }
         }
     }
 
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(ui.child?.fName?.trim() ?: "Child details")
-                },
+                title = { Text(ui.child?.fName?.trim().orEmpty().ifBlank { "Child details" }) },
                 navigationIcon = {
-                    IconButton(onClick = navigateUp) {
-                        Icon(Icons.Filled.ArrowCircleLeft, contentDescription = "Back")
+                    IconButton(onClick = toChildrenDashboard) {
+                        Icon(
+                            Icons.Filled.ArrowCircleLeft, contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.secondary
+                            )
                     }
                 },
                 actions = {
                     val child = ui.child
                     if (child != null) {
-                        IconButton(onClick = { onEdit(child.childId) }) {
-                            Icon(Icons.Outlined.Edit, contentDescription = "Edit")
+                        if(canEditChild){
+                            IconButton(onClick = { onEdit(child.childId) }) {
+                                Icon(Icons.Outlined.Edit, contentDescription = "Edit")
+                            }
                         }
                         IconButton(onClick = { vm.refresh(child.childId) }, enabled = !ui.deleting) {
                             Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                         }
-                        IconButton(onClick = { showConfirm = true }, enabled = !ui.deleting) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Delete")
-                        }
-                        IconButton(onClick = navigateUp) {
+//                 Reusable delete for CHILD
+                       if(canDeleteChild){
+                           DeleteIconWithConfirm(
+                               label = "child ${child.fName} ${child.lName}".trim(),
+                               deleting = ui.deleting,
+                               onDelete = {
+                                   vm.deleteChildOptimistic()
+                               }
+                           )
+                       }
+
+                        IconButton(onClick = toChildrenList) {
                             Icon(Icons.Outlined.Close, contentDescription = "Close")
                         }
                     }
@@ -124,29 +123,7 @@ fun ChildDetailsScreen(
         }
     }
 
-    if (showConfirm) {
-        AlertDialog(
-            onDismissRequest = { showConfirm = false },
-            title = { Text("Delete child") },
-            text = { Text("Are you sure you want to delete ${ui.child?.fName} ${ui.child?.lName}? This cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    enabled = !ui.deleting,
-                    onClick = {
-                        showConfirm = false
-                        vm.deleteChildOptimistic()
-                    }
-                ) {
-                    if (ui.deleting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
-            }
-        )
-    }
+
 }
 
 @Composable
@@ -157,6 +134,7 @@ private fun DetailsContent(child: Child) {
     var openResettlement by rememberSaveable { mutableStateOf(false) }
     var openMembers by rememberSaveable { mutableStateOf(false) }
     var openSpiritual by rememberSaveable { mutableStateOf(false) }
+    var openSponsorship by rememberSaveable { mutableStateOf(false) }
     var openStatus by rememberSaveable { mutableStateOf(true) }
 
     LazyColumn(
@@ -166,53 +144,58 @@ private fun DetailsContent(child: Child) {
     ) {
         item {
             CollapsibleSection("Basic Info", openBasic, { openBasic = !openBasic }) {
-                Field("First name", child.fName)
-                Field("Last name", child.lName)
-                Field("Other name", child.oName ?: "-")
+                Field("First name", child.fName.ifBlank { "-" })
+                Field("Last name", child.lName.ifBlank { "-" })
+                Field("Other name", child.oName.ifBlank { "-" })
                 Field("Age", child.age.takeIf { it > 0 }?.toString() ?: "-")
                 Field("Street", child.street.ifBlank { "-" })
                 Field("Invited by", child.invitedBy.name)
-                Field("Invited by type", child.invitedByType.ifBlank { "-" })
+                Field("Invited by (ID)", child.invitedByIndividualId.ifBlank { "-" })
+                Field("Invited by (Other)", child.invitedByTypeOther.ifBlank { "-" })
                 Field("Education preference", child.educationPreference.name)
+                Field("DOB verified", if (child.dobVerified) "Yes" else "No")
+                Field("Date of birth", child.dob?.asHuman() ?: "-")
             }
         }
 
         item {
             CollapsibleSection("Background Info", openBackground, { openBackground = !openBackground }) {
                 Field("Left home date", child.leftHomeDate?.asHuman() ?: "-")
-                Field("Reason left home", child.reasonLeftHome ?: "-")
-                Field("Left street date", child.leftStreetDate?.asHuman() ?: "-")
+                Field("Reason left home", child.reasonLeftHome.ifBlank { "-" })
+                Field("Left street date", child.leaveStreetDate?.asHuman() ?: "-")
             }
         }
 
         item {
             CollapsibleSection("Education Info", openEducation, { openEducation = !openEducation }) {
-                Field("Last class", child.lastClass ?: "-")
-                Field("Previous school", child.previousSchool ?: "-")
-                Field("Reason left school", child.reasonLeftSchool ?: "-")
+                Field("Last class", child.lastClass.ifBlank { "-" })
+                Field("Previous school", child.previousSchool.ifBlank { "-" })
+                Field("Reason left school", child.reasonLeftSchool.ifBlank { "-" })
             }
         }
 
         item {
             CollapsibleSection("Family Resettlement", openResettlement, { openResettlement = !openResettlement }) {
-                Field("Home preference", child.homePreference.name)
-                Field("Go home date", child.goHomeDate?.asHuman() ?: "-")
-                Field("Region", child.region ?: "-")
-                Field("District", child.district ?: "-")
-                Field("County", child.county ?: "-")
-                Field("Sub-county", child.subCounty ?: "-")   // <-- renamed
-                Field("Parish", child.parish ?: "-")
-                Field("Village", child.village ?: "-")
+                Field("Resettlement preference", child.resettlementPreference.name)
+                Field("Resettlement preference (Other)", child.resettlementPreferenceOther.ifBlank { "-" })
+                Field("Resettled", if (child.resettled) "Yes" else "No")
+                Field("Resettlement date", child.resettlementDate?.asHuman() ?: "-")
+                Field("Region", child.region.ifBlank { "-" })
+                Field("District", child.district.ifBlank { "-" })
+                Field("County", child.county.ifBlank { "-" })
+                Field("Sub-county", child.subCounty.ifBlank { "-" })
+                Field("Parish", child.parish.ifBlank { "-" })
+                Field("Village", child.village.ifBlank { "-" })
             }
         }
 
         item {
             CollapsibleSection("Family Members", openMembers, { openMembers = !openMembers }) {
-                MemberBlock(1, child.memberFName1, child.memberLName1, child.relationship1.name, child.telephone1a, child.telephone1b) // <-- renamed
+                MemberBlock(1, child.memberFName1, child.memberLName1, child.relationship1.name, child.telephone1a, child.telephone1b)
                 Divider()
-                MemberBlock(2, child.memberFName2, child.memberLName2, child.relationship2.name, child.telephone2a, child.telephone2b) // <-- renamed
+                MemberBlock(2, child.memberFName2, child.memberLName2, child.relationship2.name, child.telephone2a, child.telephone2b)
                 Divider()
-                MemberBlock(3, child.memberFName3, child.memberLName3, child.relationship3.name, child.telephone3a, child.telephone3b) // <-- renamed
+                MemberBlock(3, child.memberFName3, child.memberLName3, child.relationship3.name, child.telephone3a, child.telephone3b)
             }
         }
 
@@ -221,7 +204,23 @@ private fun DetailsContent(child: Child) {
                 Field("Accepted Jesus", child.acceptedJesus.name)
                 Field("Accepted Jesus date", child.acceptedJesusDate?.asHuman() ?: "-")
                 Field("Who prayed", child.whoPrayed.name)
-                Field("Outcome", child.outcome ?: "-")
+                Field("Who prayed (Other)", child.whoPrayedOther.ifBlank { "-" })
+                Field("Who prayed (ID)", child.whoPrayedId.ifBlank { "-" })
+                Field("Outcome", child.outcome.ifBlank { "-" })
+                Field("General comments", child.generalComments.ifBlank { "-" })
+            }
+        }
+
+        item {
+            CollapsibleSection("Sponsorship", openSponsorship, { openSponsorship = !openSponsorship }) {
+                Field("Sponsored for education", if (child.sponsoredForEducation) "Yes" else "No")
+                Field("Sponsor ID", child.sponsorId.ifBlank { "-" })
+                Field("Sponsor first name", child.sponsorFName.ifBlank { "-" })
+                Field("Sponsor last name", child.sponsorLName.ifBlank { "-" })
+                Field("Sponsor phone 1", child.sponsorTelephone1.ifBlank { "-" })
+                Field("Sponsor phone 2", child.sponsorTelephone2.ifBlank { "-" })
+                Field("Sponsor email", child.sponsorEmail.ifBlank { "-" })
+                Field("Sponsor notes", child.sponsorNotes.ifBlank { "-" })
             }
         }
 
@@ -244,9 +243,7 @@ private fun CollapsibleSection(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
@@ -255,11 +252,7 @@ private fun CollapsibleSection(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Icon(
                     if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand"
@@ -282,16 +275,8 @@ private fun CollapsibleSection(
 @Composable
 private fun Field(label: String, value: String) {
     Row(Modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(140.dp)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(160.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -310,7 +295,7 @@ private fun MemberBlock(
     Field("Phone (B)", phoneB ?: "-")
 }
 
-private fun Long.asHuman(): String {
+private fun Timestamp.asHuman(): String {
     val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
-    return sdf.format(this)
+    return sdf.format(this.toDate())
 }

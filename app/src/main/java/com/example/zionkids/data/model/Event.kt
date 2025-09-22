@@ -6,6 +6,11 @@ data class Event(
     val eventId: String = "",
     val title: String = "",
     val eventDate: Timestamp = Timestamp.now(),
+    val teamName: String = "",
+    val teamLeaderNames: String = "",
+    val leaderTelephone1: String = "",
+    val leaderTelephone2: String = "",
+    val leaderEmail: String = "",
     val location: String = "",
     val eventStatus: EventStatus = EventStatus.SCHEDULED,
     val notes: String = "",
@@ -15,4 +20,4 @@ data class Event(
 )
 
 
-enum class EventStatus { SCHEDULED, ACTIVE, COMPLETED, NEW }
+enum class EventStatus { SCHEDULED, ACTIVE, DONE }

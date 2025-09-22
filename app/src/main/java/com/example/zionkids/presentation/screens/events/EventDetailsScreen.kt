@@ -7,12 +7,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleLeft
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,7 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -34,9 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.data.model.Event
+import com.example.zionkids.presentation.screens.widgets.DeleteIconWithConfirm
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.events.EventDetailsViewModel
 import com.google.firebase.Timestamp
-import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -46,21 +44,39 @@ fun EventDetailsScreen(
     eventIdArg: String,
     onEdit: (String) -> Unit,
     toAttendanceRoster: (String, String) -> Unit,
+    toEventList: () -> Unit,
     navigateUp: () -> Unit,
-    vm: EventDetailsViewModel = hiltViewModel()
+    vm: EventDetailsViewModel = hiltViewModel(),
+    authVM: AuthViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var showConfirm by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val authUI by authVM.ui.collectAsStateWithLifecycle()
+    val canEdit = authUI.perms.canEditEvent
+    val canDelete = authUI.perms.canDeleteEvent
 
     // load once
     LaunchedEffect(eventIdArg) { vm.load(eventIdArg) }
 
-    LaunchedEffect(Unit) {
-        vm.events.collectLatest { ev ->
+//    LaunchedEffect(Unit) {
+//        vm.events.collectLatest { ev ->
+//            when (ev) {
+//                is EventDetailsViewModel.EventDetailsEvent.Deleted -> navigateUp()
+//                is EventDetailsViewModel.EventDetailsEvent.Error -> snackbarHostState.showSnackbar(ev.msg)
+//            }
+//        }
+//    }
+    LaunchedEffect(vm) {
+        vm.events.collect { ev ->
             when (ev) {
-                is EventDetailsViewModel.EventDetailsEvent.Deleted -> navigateUp()
-                is EventDetailsViewModel.EventDetailsEvent.Error -> snackbarHostState.showSnackbar(ev.msg)
+                is EventDetailsViewModel.EventDetailsEvent.Deleted -> {
+                    snackbarHostState.showSnackbar("Event deleted")
+                    toEventList()
+                }
+                is EventDetailsViewModel.EventDetailsEvent.Error -> {
+                    snackbarHostState.showSnackbar(ev.msg)
+                }
             }
         }
     }
@@ -76,15 +92,24 @@ fun EventDetailsScreen(
                 },
                 actions = {
                     ui.event?.let { event ->
+                        if (canEdit) {
                         IconButton(onClick = { onEdit(event.eventId) }) {
                             Icon(Icons.Outlined.Edit, contentDescription = "Edit")
-                        }
+                        } }
                         IconButton(onClick = { vm.refresh(event.eventId) }, enabled = true) {
                             Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                         }
-                        IconButton(onClick = { showConfirm = true }) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Delete")
+
+                        if(canDelete){
+                            DeleteIconWithConfirm(
+                                label = "Event: ${event.title} ".trim(),
+                                deleting = ui.deleting,
+                                onDelete = {
+                                    vm.deleteChildOptimistic()
+                                }
+                            )
                         }
+//
                         IconButton(onClick = navigateUp) {
                             Icon(Icons.Outlined.Close, contentDescription = "Close")
                         }
@@ -110,22 +135,7 @@ fun EventDetailsScreen(
         }
     }
 
-    if (showConfirm) {
-        AlertDialog(
-            onDismissRequest = { showConfirm = false },
-            title = { Text("Delete event") },
-            text = { Text("Are you sure you want to delete “${ui.event?.title ?: "(Untitled)"}”? This cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showConfirm = false
-                        vm.deleteEventOptimistic()
-                    }
-                ) { Text("Delete") }
-            },
-            dismissButton = { TextButton(onClick = { showConfirm = false }) { Text("Cancel") } }
-        )
-    }
+
 }
 
 @Composable
@@ -157,6 +167,10 @@ private fun DetailsContent(
                 Field("Date", event.eventDate.asDateOnly())     // Timestamp ✅
                 Field("Status", event.eventStatus.name)
                 Field("Location", event.location.ifBlank { "-" })
+                Field("Team Name", event.teamName)     // Timestamp ✅
+                Field("Team Leader", event.teamLeaderNames)
+                Field("Tel", event.leaderTelephone1.ifBlank { "-" })
+                Field("Tel", event.leaderTelephone2.ifBlank { "-" })
                 Field("Notes", event.notes.ifBlank { "-" })
             }
         }

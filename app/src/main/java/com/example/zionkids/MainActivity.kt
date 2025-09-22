@@ -1,10 +1,12 @@
 package com.example.zionkids
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.Keep
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,19 +22,21 @@ import com.example.zionkids.presentation.navigation.ZionAppNavHost
 import com.example.zionkids.presentation.screens.AllComponentsScreen
 import com.example.zionkids.presentation.screens.ChildBasicInfoScreen
 import com.example.zionkids.presentation.screens.HomeScreen
-import com.example.zionkids.presentation.screens.KidRegistrationScreen
+
 import com.example.zionkids.presentation.theme.ZionKidsTheme
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+//import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
 
 @Keep
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -73,7 +77,7 @@ private fun SetBarColor(color: androidx.compose.ui.graphics.Color){
 @Composable
 private fun SetBarsToPrimary() {
     val systemUiController = rememberSystemUiController()
-    val primary = MaterialTheme.colorScheme.secondary
+    val primary = MaterialTheme.colorScheme.onSurfaceVariant
     val useDarkIcons = MaterialTheme.colorScheme.onSecondary.luminance() > 0.5f
 
     SideEffect {

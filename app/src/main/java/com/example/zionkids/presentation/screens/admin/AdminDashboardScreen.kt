@@ -1,23 +1,23 @@
-package com.example.zionkids.presentation.screens
+package com.example.zionkids.presentation.screens.admin
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Event
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zionkids.data.model.EducationPreference
+import com.example.zionkids.R
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
+//import com.example.zionkids.presentation.screens.admin.StatCard
+//import com.example.zionkids.presentation.screens.children.StatCard
 import com.example.zionkids.presentation.viewModels.AdminDashboardViewModel
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import com.google.firebase.Timestamp
@@ -27,11 +27,15 @@ import com.google.firebase.Timestamp
 fun AdminDashboardScreen(
     toChildrenList: () -> Unit,
     toEventsList: () -> Unit,
-    toAddChild: () -> Unit,
-    toAddEvent: () -> Unit,
-    vm: AdminDashboardViewModel = hiltViewModel()
+    toAccepted: () -> Unit,
+    toYetAccept: () -> Unit,
+    toResettled: () -> Unit,
+    toBeResettled: () -> Unit,
+    vm: AdminDashboardViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsState()
+
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -40,6 +44,7 @@ fun AdminDashboardScreen(
             ZionKidAppTopBar(
                 canNavigateBack = false,
                 navigateUp = { /* no-op on home */ },
+                txtLabel = stringResource(R.string.home),
             )
         },
     ) { inner ->
@@ -68,17 +73,43 @@ fun AdminDashboardScreen(
                 // KPI rows
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Children", ui.childrenTotal.toString(), Modifier.weight(1f), onClick = toChildrenList)
+                        StatCard("Total", ui.childrenTotal.toString(), Modifier.weight(1f), onClick = toChildrenList)
                         StatCard("New This Month", ui.childrenNewThisMonth.toString(), Modifier.weight(1f))
+                       }
+                }
+
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("Graduated", ui.childrenGraduated.toString(), Modifier.weight(1f))
+                        StatCard("Sponsored", ui.sponsored.toString(), Modifier.weight(1f))
                     }
                 }
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Events Today", ui.eventsToday.toString(), Modifier.weight(1f), onClick = toEventsList)
-                        StatCard("Active Now", ui.eventsActiveNow.toString(), Modifier.weight(1f))
+                        StatCard("Accepted Christ", ui.acceptedChrist.toString(),  onClick = toAccepted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard("Yet to Accept", ui.yetToAcceptChrist.toString(), onClick = toYetAccept,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
+
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                         StatCard("Resettled", ui.resettled.toString(), onClick = toResettled , modifier = Modifier.weight(1f))
+                         StatCard("To Resettle", ui.toBeResettled.toString(),onClick = toBeResettled , modifier =  Modifier.weight(1f))
+
+//                         StatCard("Events Today", ui.eventsToday.toString(), Modifier.weight(1f), onClick = toEventsList)
+
+                    }
+                }
+//                item {
+//                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+//                        StatCard("Active Now", ui.eventsActiveNow.toString(), Modifier.weight(1f))
+//                    }
+//                }
+
 
                 // Happening Today
                 item {
@@ -104,7 +135,7 @@ fun AdminDashboardScreen(
 @Composable
 private fun QuickActionButton(
     text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -157,21 +188,21 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
     }
 }
 
-@Composable
-private fun DistributionRow(label: String, count: Int, total: Int) {
-    Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(count.toString(), style = MaterialTheme.typography.bodyMedium)
-        }
-        LinearProgressIndicator(
-            progress = (count / total.toFloat()).coerceIn(0f, 1f),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-        )
-    }
-}
+//@Composable
+//private fun DistributionRow(label: String, count: Int, total: Int) {
+//    Column {
+//        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+//            Text(label, style = MaterialTheme.typography.bodyMedium)
+//            Text(count.toString(), style = MaterialTheme.typography.bodyMedium)
+//        }
+//        LinearProgressIndicator(
+//            progress = (count / total.toFloat()).coerceIn(0f, 1f),
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .height(6.dp)
+//        )
+//    }
+//}
 
 @Composable
 private fun EventRowSmall(event: Event, onOpen: () -> Unit) {

@@ -13,16 +13,19 @@ import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.R
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.events.EventDashboardViewModel
 import com.example.zionkids.presentation.viewModels.events.EventTab
 import com.google.firebase.Timestamp
@@ -37,9 +40,14 @@ fun EventDashboardScreen(
     toEventList: () -> Unit,
     toEventDetails: (String) -> Unit,
     toEventForm: () -> Unit,
-    vm: EventDashboardViewModel = hiltViewModel()
+    vm: EventDashboardViewModel = hiltViewModel(),
+    authVM: AuthViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsState()
+
+//    val authUI by authVM.ui.collectAsStateWithLifecycle()
+//    val canAdd = authUI.perms.canCreateEvent
+//    val canAdd = authVM.ui.perms.canCreateEvent
 
     Scaffold(
         topBar = {
@@ -64,20 +72,21 @@ fun EventDashboardScreen(
                     statusFilter = ui.statusFilter,
                     onToggle = vm::toggleStatusFilter,
                     selectedTab = ui.selectedTab,
+                    toEventList = toEventList,
                     onUpcoming = { vm.setTab(EventTab.UPCOMING) },
                     onPast = { vm.setTab(EventTab.PAST) },
                     toEventForm = toEventForm
                 )
             }
 
-            item {
-                StatCard(
-                    title = "Events",
-                    value = "View All",
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = toEventList
-                )
-            }
+//            item {
+//                StatCard(
+//                    title = "Events",
+//                    value = "View All",
+//                    modifier = Modifier.fillMaxWidth(),
+//                    onClick = toEventList
+//                )
+//            }
 
             when {
                 ui.loading -> {
@@ -149,17 +158,23 @@ private fun DashboardHeader(
     statusFilter: Set<EventStatus>,
     onToggle: (EventStatus) -> Unit,
     selectedTab: EventTab,
+    toEventList: () -> Unit,
     onUpcoming: () -> Unit,
     toEventForm: () -> Unit,
-    onPast: () -> Unit
+    onPast: () -> Unit,
+    authVM: AuthViewModel = hiltViewModel(),
 ) {
     val allowedStatuses: Set<EventStatus> = when (selectedTab) {
-        EventTab.UPCOMING -> setOf(EventStatus.SCHEDULED, EventStatus.ACTIVE)
-        EventTab.PAST     -> setOf(EventStatus.SCHEDULED, EventStatus.COMPLETED)
-        EventTab.NEW      -> setOf(EventStatus.SCHEDULED, EventStatus.NEW)
+        EventTab.UPCOMING -> setOf(EventStatus.SCHEDULED, EventStatus.ACTIVE, EventStatus.DONE)
+        EventTab.PAST     -> setOf(EventStatus.SCHEDULED, EventStatus.ACTIVE, EventStatus.DONE)
+        EventTab.NEW -> TODO()
     }
     val selectedIndex = if (selectedTab == EventTab.UPCOMING) 0 else 1
 
+    val authUI by authVM.ui.collectAsStateWithLifecycle()
+    val canAdd = authUI.perms.canCreateEvent
+//    val canAdd = authVM.ui.perms.canCreateEvent
+//
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
         // KPI row
@@ -179,6 +194,26 @@ private fun DashboardHeader(
             )
         }
 
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if(canAdd){
+                StatCard(
+                    title = "Event",
+                    value = "Add New",
+                    modifier = Modifier.weight(1f),
+                    onClick = toEventForm
+                )
+            }
+            StatCard(
+                title = "Event",
+                value = "View All",
+                modifier = Modifier.weight(1f),
+                onClick = toEventList
+            )
+
+        }
         // Tabs
         TabRow(
             selectedTabIndex = selectedIndex,
@@ -206,12 +241,8 @@ private fun DashboardHeader(
             )
         }
 
-        StatCard(
-            title = "Event",
-            value = "Add New",
-            modifier = Modifier.fillMaxWidth(),
-            onClick = toEventForm
-        )
+
+
 
         // Status Filters
         Text("Status Filters", style = MaterialTheme.typography.titleSmall)
@@ -277,8 +308,8 @@ private fun EventRow(
     val label = when (event.eventStatus) {
         EventStatus.SCHEDULED -> "S"
         EventStatus.ACTIVE    -> "A"
-        EventStatus.COMPLETED -> "C"
-        EventStatus.NEW       -> "N"
+        EventStatus.DONE -> "D"
+
     }
     ElevatedCard(
         onClick = onClick,
@@ -333,4 +364,5 @@ private fun EventRow(
 /* ---------- Timestamp formatting (timestamps all through) ---------- */
 
 private val dayFmt = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+
 private fun formatDate(ts: Timestamp): String = dayFmt.format(ts.toDate())

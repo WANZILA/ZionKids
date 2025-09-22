@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "910252671373",
-    "project_id": "childrenofzion-2379e",
-    "storage_bucket": "childrenofzion-2379e.firebasestorage.app"
+    "project_number": "83231010718",
+    "project_id": "children-of-zion",
+    "storage_bucket": "children-of-zion.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:910252671373:android:93e017e40cb0d41b92fdc4",
+        "mobilesdk_app_id": "1:83231010718:android:23a51c84b622528d83308f",
         "android_client_info": {
           "package_name": "com.example.zionkids"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBaO3i4bYWB0aathR2fIEzDiNJcwe_uyhc"
+          "current_key": "AIzaSyCWy4l4-CVmHOTQ1ywON032EI0y7zVN-nI"
         }
       ],
       "services": {

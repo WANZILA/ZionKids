@@ -15,7 +15,7 @@ android {
         applicationId = "com.example.zionkids"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -33,6 +33,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -43,6 +44,10 @@ android {
 }
 
 dependencies {
+implementation(libs.firebase.storage)
+    //    implementation("coreLibraryDesugaring com.android.tools:desugar_jdk_libs:2.1.2")
+    //no need for adding  @RequiresApi(Build.VERSION_CODES.O)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

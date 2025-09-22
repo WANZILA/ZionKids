@@ -1,11 +1,13 @@
 package com.example.zionkids.domain.repositories.online
 
 import com.example.zionkids.core.Utils.GenerateId
+import com.example.zionkids.core.di.AttendanceRef
 import com.example.zionkids.core.di.EventsRef
 import com.example.zionkids.data.mappers.toEvents
 import com.example.zionkids.data.model.Event
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.cancel
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.collections.chunked
+import kotlin.collections.forEach
 
 data class EventSnapshot(
     val events: List<Event>,
@@ -27,12 +31,14 @@ interface EventsRepository {
     fun streamEvents(): Flow<EventSnapshot>               // list + metadata
     fun streamEventSnapshots(): Flow<List<Event>>         // just the list
     suspend fun getEventFast(id: String): Event?
-    fun enqueueDelete(id: String)
+//    fun enqueueDelete(id: String)
+    suspend fun deleteEventAndAttendances(eventId: String)
 }
 
 @Singleton
 class EventsRepositoryImpl @Inject constructor(
-    @EventsRef private val eventsRef: CollectionReference
+    @EventsRef private val eventsRef: CollectionReference,
+    @AttendanceRef private val attendanceRef: CollectionReference
 ) : EventsRepository {
 
     override suspend fun getEventFast(id: String): Event? {
@@ -56,7 +62,12 @@ class EventsRepositoryImpl @Inject constructor(
             "eventId" to id,
             "adminId" to event.adminId,
             "title" to event.title,
-            "eventDate" to event.eventDate,               // Timestamp ✅
+            "eventDate" to event.eventDate,
+            "teamName" to event.teamName,
+            "teamLeaderNames" to event.teamLeaderNames,
+            "leaderTelephone1" to event.leaderTelephone1,
+            "leaderTelephone2" to event.leaderTelephone2,
+            "leaderEmail" to event.leaderEmail,
             "eventStatus" to event.eventStatus.name,
             "location" to event.location,
             "notes" to event.notes,
@@ -113,8 +124,30 @@ class EventsRepositoryImpl @Inject constructor(
         awaitClose { registration.remove() }
     }
 
-    override fun enqueueDelete(id: String) {
-        // queued offline; syncs when online
-        eventsRef.document(id).delete()
+    override suspend fun deleteEventAndAttendances(eventId: String) {
+        val db = eventsRef.firestore
+
+        // delete the child immediately
+        eventsRef.document(eventId).delete()
+
+        // listener registration placeholder
+        var registration: ListenerRegistration? = null
+
+        registration = db.collectionGroup("attendance")
+            .whereEqualTo("eventId", eventId)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+
+                if (snap.isEmpty) {
+                    // no more attendances ⇒ stop listening
+                    registration?.remove()
+                    return@addSnapshotListener
+                }
+
+                val chunks = snap.documents.chunked(450)
+                chunks.forEach { chunk ->
+                    db.runBatch { b -> chunk.forEach { b.delete(it.reference) } }
+                }
+            }
     }
 }

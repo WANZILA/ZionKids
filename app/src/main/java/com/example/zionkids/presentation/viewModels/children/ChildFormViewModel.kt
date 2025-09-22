@@ -1,20 +1,25 @@
-//package com.example.zionkids.presentation.viewModels.children
-//
 package com.example.zionkids.presentation.viewModels.children
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.core.utils.FormValidatorUtil
 import com.example.zionkids.core.Utils.GenerateId
 import com.example.zionkids.data.model.*
 import com.example.zionkids.domain.repositories.online.ChildrenRepository
+import com.example.zionkids.presentation.viewModels.events.EventFormViewModel.EventFormEvent
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val MAX_AGE = 25
 
 @HiltViewModel
 class ChildFormViewModel @Inject constructor(
@@ -22,6 +27,7 @@ class ChildFormViewModel @Inject constructor(
 ) : ViewModel() {
 
     var ui by mutableStateOf(ChildFormUiState())
+
 
     // ---- step control ----
     var step by mutableStateOf(RegistrationStatus.BASICINFOR)
@@ -32,29 +38,34 @@ class ChildFormViewModel @Inject constructor(
         ui = ui.copy(registrationStatus = s)
     }
 
+
     fun goBack() {
         step = when (step) {
             RegistrationStatus.BASICINFOR -> RegistrationStatus.BASICINFOR
             RegistrationStatus.BACKGROUND -> RegistrationStatus.BASICINFOR
             RegistrationStatus.EDUCATION  -> RegistrationStatus.BACKGROUND
-            RegistrationStatus.FAMILY     -> RegistrationStatus.EDUCATION
-            RegistrationStatus.SPIRITUAL  -> RegistrationStatus.FAMILY
+            RegistrationStatus.FAMILY     -> RegistrationStatus.SPONSORSHIP
+            RegistrationStatus.SPONSORSHIP     -> RegistrationStatus.SPIRITUAL
+            RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
             RegistrationStatus.COMPLETE   -> RegistrationStatus.SPIRITUAL
         }
         ui = ui.copy(registrationStatus = step)
     }
 
-    fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
+//    @RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.O)
+fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         val ok = validateStep(step)
         if (!ok) return@launch
-//        saveProgress()
         step = when (step) {
             RegistrationStatus.BASICINFOR -> RegistrationStatus.BACKGROUND
             RegistrationStatus.BACKGROUND -> RegistrationStatus.EDUCATION
             RegistrationStatus.EDUCATION  -> RegistrationStatus.FAMILY
-            RegistrationStatus.FAMILY     -> RegistrationStatus.SPIRITUAL
+            RegistrationStatus.FAMILY     -> RegistrationStatus.SPONSORSHIP
+            RegistrationStatus.SPONSORSHIP -> RegistrationStatus.SPIRITUAL
             RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
-            RegistrationStatus.COMPLETE   -> RegistrationStatus.COMPLETE
+            RegistrationStatus.COMPLETE   -> RegistrationStatus.SPIRITUAL
+
         }
         ui = ui.copy(registrationStatus = step)
         onAfterSave?.invoke()
@@ -81,46 +92,173 @@ class ChildFormViewModel @Inject constructor(
     }
 
     // ---- common setters used by UI ----
-    fun onFirstName(v: String) { ui = ui.copy(fName = v) }
-    fun onLastName(v: String)  { ui = ui.copy(lName = v) }
+//    fun onFirstName(v: String) {
+//        val cleaned = cleanName(v)
+//        ui = ui.copy(
+//            fName = cleaned,
+//            fNameError = validateName(cleaned)
+//        )
+//    }
+//    fun onLastName(v: String) {
+//        val cleaned = cleanName(v)
+//        ui = ui.copy(
+//            lName = cleaned,
+//            lNameError = validateName(cleaned)
+//        )
+//    }
+    fun onFirstName(v: String) {
+        val res = FormValidatorUtil.validateName(v)   // allows letters, digits, _, -, ., ', :
+        ui = ui.copy(fName = res.value, fNameError = res.error)
+    }
+
+    fun onLastName(v: String) {
+        val res = FormValidatorUtil.validateName(v)
+        ui = ui.copy(lName = res.value, lNameError = res.error)
+    }
+
+    fun onStreet(v: String) {
+        // If you added validateStreet() in the util, call that; otherwise reuse validateName:
+        val res = FormValidatorUtil.validateName(v)
+        ui = ui.copy(street = res.value, streetError = res.error)
+    }
+
+
     fun onOtherName(v: String) { ui = ui.copy(oName = v) }
-    fun onAge(v: String)       { ui = ui.copy(ageText = v.filter { it.isDigit() }) }
-    fun onStreet(v: String)    { ui = ui.copy(street = v) }
+//    fun onAge(v: String) {
+//        val digitsOnly = v.filter { it.isDigit() }.take(2) // ages 0–25 ⇒ 2 digits enough
+//        ui = ui.copy(
+//            ageText = digitsOnly,
+//            ageError = validateAgeText(digitsOnly)
+//        )
+//    }
+
+//    fun onStreet(v: String) {
+//        val cleaned = cleanName(v)
+//        ui = ui.copy(
+//            street = cleaned,
+//            streetError = validateName(cleaned)
+//        )
+//    }
     fun onInvitedBy(v: Individual) { ui = ui.copy(invitedBy = v) }
     fun onEduPref(v: EducationPreference) { ui = ui.copy(educationPreference = v) }
+    fun onGender(v: Gender) { ui = ui.copy( gender = v) }
+    fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
 
-    // Optional new setters if you want them:
-    fun onDob(millis: Long) { ui = ui.copy(dob = millis) }
+    // Timestamp setters
+//    fun onDob(ts: Timestamp?) { ui = ui.copy(dob = ts) }
+    fun onDobMillis(millis: Long?) { ui = ui.copy(dob = millis?.let { Timestamp(it / 1000, ((it % 1000).toInt()) * 1_000_000) }) }
     fun onDobVerified(v: Boolean) { ui = ui.copy(dobVerified = v) }
-    fun onSubCounty(v: String?) { ui = ui.copy(subCounty = v) }
-    fun onReunited(v: Boolean) { ui = ui.copy(reunitedWithFamily = v) }
-    fun onSponsored(v: Boolean) { ui = ui.copy(sponsoredForEducation = v) }
-    fun onSponsorId(v: String?) { ui = ui.copy(sponsorId = v) }
-    fun onSponsorNotes(v: String?) { ui = ui.copy(sponsorNotes = v) }
 
-    // ---- validation per step (lightweight) ----
-    private fun validateStep(s: RegistrationStatus): Boolean =
+    fun onSubCounty(v: String?) { ui = ui.copy(subCounty = v ?: "") }
+    fun onSponsored(v: Boolean) { ui = ui.copy(sponsoredForEducation = v) }
+//    fun onSponsorId(v: String?) { ui = ui.copy(sponsorId = v ?: "") }
+    fun onSponsorNotes(v: String?) { ui = ui.copy(sponsorNotes = v ?: "") }
+
+    fun onGraduated(checked: Boolean) {
+        ui = ui.copy(graduated = if (checked) Reply.YES else Reply.NO)
+    }
+    fun generalNotes(v: String?) { ui = ui.copy(generalComments = v ?: "") }
+
+    // In ChildFormViewModel
+
+// In ChildFormViewModel
+
+    private val kampalaTz = java.util.TimeZone.getTimeZone("Africa/Kampala")
+
+    private fun dobFromAge(age: Int): com.google.firebase.Timestamp {
+        val cal = java.util.Calendar.getInstance(kampalaTz)
+        // keep today's day & month, go back `age` years
+        cal.add(java.util.Calendar.YEAR, -age)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return com.google.firebase.Timestamp(cal.time)
+    }
+
+    private fun yearsBetweenDobAndToday(dob: com.google.firebase.Timestamp): Int {
+        val now = java.util.Calendar.getInstance(kampalaTz)
+        val birth = java.util.Calendar.getInstance(kampalaTz).apply { time = dob.toDate() }
+
+        var years = now.get(java.util.Calendar.YEAR) - birth.get(java.util.Calendar.YEAR)
+        val birthdayThisYear =
+            now.get(java.util.Calendar.MONTH) > birth.get(java.util.Calendar.MONTH) ||
+                    (now.get(java.util.Calendar.MONTH) == birth.get(java.util.Calendar.MONTH) &&
+                            now.get(java.util.Calendar.DAY_OF_MONTH) >= birth.get(java.util.Calendar.DAY_OF_MONTH))
+
+        if (!birthdayThisYear) years -= 1
+        return years.coerceIn(0, MAX_AGE)
+    }
+
+    // AGE -> DOB
+    fun onAge(text: String) {
+        val clean = text.filter { it.isDigit() }.take(2) // 0–99
+        var newUi = ui.copy(ageText = clean)
+
+        val age = clean.toIntOrNull()
+        if (age != null && age in 0..MAX_AGE) {
+            val inferredDob = dobFromAge(age)
+            // mark as inferred; user can toggle verified manually if needed
+            newUi = newUi.copy(dob = inferredDob, dobVerified = false)
+        }
+        ui = newUi
+    }
+
+    // DOB -> AGE
+    fun onDob(dob: com.google.firebase.Timestamp?) {
+        var newUi = ui.copy(dob = dob)
+        if (dob != null) {
+            val age = yearsBetweenDobAndToday(dob)
+            newUi = newUi.copy(ageText = age.toString())
+        }
+        ui = newUi
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun validateStep(s: RegistrationStatus): Boolean =
         when (s) {
             RegistrationStatus.BASICINFOR -> {
-                val age = ui.ageText.toIntOrNull() ?: -1
-                when {
-                    ui.fName.isBlank() || ui.lName.isBlank() -> {
-                        ui = ui.copy(error = "First and last name are required.")
-                        false
-                    }
-                    ui.ageText.isNotBlank() && age !in 0..25 -> {
-                        ui = ui.copy(error = "Age should be 0–25.")
-                        false
-                    }
-                    else -> { ui = ui.copy(error = null); true }
+                val fRes      = FormValidatorUtil.validateName(ui.fName)
+                val lRes      = FormValidatorUtil.validateName(ui.lName)
+                val streetRes = FormValidatorUtil.validateName(ui.street)
+                val ageRes    = FormValidatorUtil.validateAgeString(
+                    ui.ageText.orEmpty(),
+                    minAge = 0,
+                    maxAge = MAX_AGE
+                )
+
+//                val dobTs = if (ageRes.isValid) {
+//                    dobFromAge(ageRes.value.first)   // keep Kampala TZ behavior
+//                } else ui.dob
+
+                ui = ui.copy(
+                    fName       = fRes.value,       fNameError  = fRes.error,
+                    lName       = lRes.value,       lNameError  = lRes.error,
+                    street      = streetRes.value,  streetError = streetRes.error,
+                    ageText     = ageRes.value.first.toString(),
+                    ageError    = ageRes.error,
+//                    dob         = dobTs,
+                    error       = null
+                )
+
+                val ok = fRes.isValid && lRes.isValid && streetRes.isValid && ageRes.isValid
+                if (!ok) {
+                    ui = ui.copy(error = "Please fix the highlighted fields.")
+                    _events.trySend(ChildFormEvent.Error("Missing or invalid fields"))
                 }
+                ok
             }
-            else -> { ui = ui.copy(error = null); true }
+            else -> {
+                ui = ui.copy(error = null)
+                true
+            }
         }
+
 
     fun ensureNewIdIfNeeded() {
         if (ui.childId.isBlank()) {
-            val now = System.currentTimeMillis()
+            val now = Timestamp.now()
             ui = ui.copy(
                 childId = GenerateId.generateId("child"),
                 createdAt = now,
@@ -129,29 +267,30 @@ class ChildFormViewModel @Inject constructor(
         }
     }
 
-    /** Partial merge save so we don't wipe other fields. */
-    fun saveProgress() = viewModelScope.launch {
-        ensureNewIdIfNeeded()
-        val now = System.currentTimeMillis()
-        val id = ui.childId
-        val child = buildChild(id = id, now = now, status = step)
-        runCatching { repo.upsert(child, isNew = false) }
-            .onSuccess { ui = ui.copy(childId = id) }
-    }
+//    /** Partial merge save so we don't wipe other fields. */
+//    fun saveProgress() = viewModelScope.launch {
+//        ensureNewIdIfNeeded()
+//        val now = Timestamp.now()
+//        val id = ui.childId
+//        val child = buildChild(id = id, now = now, status = step)
+//        runCatching { repo.upsert(child, isNew = false) }
+//            .onSuccess { ui = ui.copy(childId = id) }
+//    }
 
     /** Final save. Emits Saved(id) on success; do NOT navigate here. */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun save() = viewModelScope.launch {
         ui = ui.copy(saving = true, error = null)
 
-        if (ui.fName.isBlank() || ui.lName.isBlank()) {
-            ui = ui.copy(saving = false, error = "First and last name are required.")
-            _events.trySend(ChildFormEvent.Error("Missing required fields"))
+        // ensure BASICINFOR fields are valid before saving
+        if (!validateStep(RegistrationStatus.BASICINFOR)) {
+            ui = ui.copy(saving = false)
+            _events.trySend(ChildFormEvent.Error("Missing/invalid basic info"))
             return@launch
         }
 
         if (ui.isNew && ui.childId.isBlank()) ensureNewIdIfNeeded()
-
-        val now = System.currentTimeMillis()
+        val now = Timestamp.now()
         val id = ui.childId
         val child = buildChild(id = id, now = now, status = ui.registrationStatus)
 
@@ -166,10 +305,11 @@ class ChildFormViewModel @Inject constructor(
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun finish() = save()
 
     // ---- helpers ----
-    private fun buildChild(id: String, now: Long, status: RegistrationStatus): Child =
+    private fun buildChild(id: String, now: Timestamp, status: RegistrationStatus): Child =
         Child(
             childId = id,
 
@@ -177,19 +317,21 @@ class ChildFormViewModel @Inject constructor(
             profileImg = ui.profileImg,
             fName = ui.fName.trim(),
             lName = ui.lName.trim(),
-            oName = ui.oName?.trim(),
+            oName = ui.oName.trim(),
+            gender = ui.gender,
             age = ui.ageText.toIntOrNull() ?: 0,
             dob = ui.dob,
             dobVerified = ui.dobVerified,
             street = ui.street,
             invitedBy = ui.invitedBy,
-            invitedByType = ui.invitedByType,
+            invitedByIndividualId = ui.invitedByIndividualId,
+            invitedByTypeOther = ui.invitedByTypeOther,
             educationPreference = ui.educationPreference,
 
             // Background
             leftHomeDate = ui.leftHomeDate,
             reasonLeftHome = ui.reasonLeftHome,
-            leftStreetDate = ui.leftStreetDate,
+            leaveStreetDate = ui.leaveStreetDate,
 
             // Education
             lastClass = ui.lastClass,
@@ -197,31 +339,33 @@ class ChildFormViewModel @Inject constructor(
             reasonLeftSchool = ui.reasonLeftSchool,
 
             // Resettlement
-            homePreference = ui.homePreference,
-            goHomeDate = ui.goHomeDate,
+            resettlementPreference = ui.resettlementPreference,
+            resettlementPreferenceOther = ui.resettlementPreferenceOther,
+            resettled = ui.resettled,
+            resettlementDate = ui.resettlementDate,
             region = ui.region,
             district = ui.district,
             county = ui.county,
-            subCounty = ui.subCounty,              // renamed from sCounty
+            subCounty = ui.subCounty,
             parish = ui.parish,
             village = ui.village,
 
             // Members
             memberFName1 = ui.memberFName1,
             memberLName1 = ui.memberLName1,
-            relationship1 = ui.relationship1,     // enum renamed
+            relationship1 = ui.relationship1,
             telephone1a = ui.telephone1a,
             telephone1b = ui.telephone1b,
 
             memberFName2 = ui.memberFName2,
             memberLName2 = ui.memberLName2,
-            relationship2 = ui.relationship2,     // enum renamed
+            relationship2 = ui.relationship2,
             telephone2a = ui.telephone2a,
             telephone2b = ui.telephone2b,
 
             memberFName3 = ui.memberFName3,
             memberLName3 = ui.memberLName3,
-            relationship3 = ui.relationship3,     // enum renamed
+            relationship3 = ui.relationship3,
             telephone3a = ui.telephone3a,
             telephone3b = ui.telephone3b,
 
@@ -229,18 +373,26 @@ class ChildFormViewModel @Inject constructor(
             acceptedJesus = ui.acceptedJesus,
             acceptedJesusDate = ui.acceptedJesusDate,
             whoPrayed = ui.whoPrayed,
+            whoPrayedOther = ui.whoPrayedOther,
+            whoPrayedId = ui.whoPrayedId,
+            classGroup = ui.classGroup,
             outcome = ui.outcome,
+            generalComments = ui.generalComments,
 
-            // New flags (program state)
-            reunitedWithFamily = ui.reunitedWithFamily,
+            // Sponsorship
             sponsoredForEducation = ui.sponsoredForEducation,
             sponsorId = ui.sponsorId,
+            sponsorFName = ui.sponsorFName,
+            sponsorLName = ui.sponsorLName,
+            sponsorTelephone1 = ui.sponsorTelephone1,
+            sponsorTelephone2 = ui.sponsorTelephone2,
+            sponsorEmail = ui.sponsorEmail,
             sponsorNotes = ui.sponsorNotes,
 
             // Status & audit
-            graduated = ui.graduated,
             registrationStatus = status,
-            createdAt = if (ui.createdAt == 0L) now else ui.createdAt,
+            graduated = ui.graduated,
+            createdAt = ui.createdAt ?: now,
             updatedAt = now
         )
 
@@ -250,604 +402,178 @@ class ChildFormViewModel @Inject constructor(
         fName = c.fName,
         lName = c.lName,
         oName = c.oName,
+        gender = c.gender,
         ageText = c.age.toString(),
         dob = c.dob,
         dobVerified = c.dobVerified,
         street = c.street,
         invitedBy = c.invitedBy,
-        invitedByType = c.invitedByType,
+        invitedByIndividualId = c.invitedByIndividualId,
+        invitedByTypeOther = c.invitedByTypeOther,
         educationPreference = c.educationPreference,
 
         leftHomeDate = c.leftHomeDate,
         reasonLeftHome = c.reasonLeftHome,
-        leftStreetDate = c.leftStreetDate,
+        leaveStreetDate = c.leaveStreetDate,
 
         lastClass = c.lastClass,
         previousSchool = c.previousSchool,
         reasonLeftSchool = c.reasonLeftSchool,
 
-        homePreference = c.homePreference,
-        goHomeDate = c.goHomeDate,
+        resettlementPreference = c.resettlementPreference,
+        resettlementPreferenceOther = c.resettlementPreferenceOther,
+        resettled = c.resettled,
+        resettlementDate = c.resettlementDate,
         region = c.region,
         district = c.district,
         county = c.county,
-        subCounty = c.subCounty,                 // renamed
+        subCounty = c.subCounty,
         parish = c.parish,
         village = c.village,
 
         memberFName1 = c.memberFName1,
         memberLName1 = c.memberLName1,
-        relationship1 = c.relationship1,         // renamed
+        relationship1 = c.relationship1,
         telephone1a = c.telephone1a,
         telephone1b = c.telephone1b,
 
         memberFName2 = c.memberFName2,
         memberLName2 = c.memberLName2,
-        relationship2 = c.relationship2,         // renamed
+        relationship2 = c.relationship2,
         telephone2a = c.telephone2a,
         telephone2b = c.telephone2b,
 
         memberFName3 = c.memberFName3,
         memberLName3 = c.memberLName3,
-        relationship3 = c.relationship3,         // renamed
+        relationship3 = c.relationship3,
         telephone3a = c.telephone3a,
         telephone3b = c.telephone3b,
 
         acceptedJesus = c.acceptedJesus,
         acceptedJesusDate = c.acceptedJesusDate,
         whoPrayed = c.whoPrayed,
+        whoPrayedOther = c.whoPrayedOther,
+        whoPrayedId = c.whoPrayedId,
+        classGroup = c.classGroup,
         outcome = c.outcome,
+        generalComments = c.generalComments,
 
-        reunitedWithFamily = c.reunitedWithFamily,
         sponsoredForEducation = c.sponsoredForEducation,
         sponsorId = c.sponsorId,
+        sponsorFName = c.sponsorFName,
+        sponsorLName = c.sponsorLName,
+        sponsorTelephone1 = c.sponsorTelephone1,
+        sponsorTelephone2 = c.sponsorTelephone2,
+        sponsorEmail = c.sponsorEmail,
         sponsorNotes = c.sponsorNotes,
 
         graduated = c.graduated,
         registrationStatus = c.registrationStatus,
         createdAt = c.createdAt
     )
+
 }
 
+// -------------------- UI STATE --------------------
 data class ChildFormUiState(
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null,
     val isNew: Boolean = true,
 
-    // Basic
+    // per-field errors
+    val fNameError: String? = null,
+    val lNameError: String? = null,
+    val ageError: String? = null,
+    val streetError: String? = null,
+
+    // ===== Basic =====
     val childId: String = "",
     val profileImg: String = "",
+
     val fName: String = "",
     val lName: String = "",
-    val oName: String? = null,
+    val oName: String = "",
+
     val ageText: String = "",
-    val dob: Long = 0L,
+    val gender: Gender = Gender.MALE,
+
+    val dob: Timestamp? = null,
     val dobVerified: Boolean = false,
+
     val street: String = "",
 
     val invitedBy: Individual = Individual.UNCLE,
-    val invitedByType: String = "",
+    val invitedByIndividualId: String = "",
+    val invitedByTypeOther: String = "",
+
     val educationPreference: EducationPreference = EducationPreference.NONE,
 
-    // Status & spiritual
-    val homePreference: Reply = Reply.NO,
-    val acceptedJesus: Reply = Reply.NO,
-    val whoPrayed: Individual = Individual.UNCLE,
-    val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
+    // ===== Background =====
+    val leftHomeDate: Timestamp? = null,
+    val reasonLeftHome: String = "",
+    val leaveStreetDate: Timestamp? = null,
 
-    // Audit
-    val createdAt: Long = 0L,
+    // ===== Education =====
+    val lastClass: String = "",
+    val previousSchool: String = "",
+    val reasonLeftSchool: String = "",
 
-    // Background
-    val leftHomeDate: Long? = null,
-    val reasonLeftHome: String? = null,
-    val leftStreetDate: Long? = null,
+    // ===== Resettlement =====
+    val resettlementPreference: ResettlementPreference = ResettlementPreference.Home,
+    val resettlementPreferenceOther: String = "",
+    val resettled: Boolean = false,
+    val resettlementDate: Timestamp? = null,
+    val region: String = "",
+    val district: String = "",
+    val county: String = "",
+    val subCounty: String = "",
+    val parish: String = "",
+    val village: String = "",
 
-    // Education
-    val lastClass: String? = null,
-    val previousSchool: String? = null,
-    val reasonLeftSchool: String? = null,
-
-    // Resettlement
-    val goHomeDate: Long? = null,
-    val region: String? = null,
-    val district: String? = null,
-    val county: String? = null,
-    val subCounty: String? = null,                 // renamed from sCounty
-    val parish: String? = null,
-    val village: String? = null,
-
-    // Members (enum renamed)
-    val memberFName1: String? = null,
-    val memberLName1: String? = null,
+    // ===== Members =====
+    val memberFName1: String = "",
+    val memberLName1: String = "",
     val relationship1: Relationship = Relationship.NONE,
-    val telephone1a: String? = null,
-    val telephone1b: String? = null,
+    val telephone1a: String = "",
+    val telephone1b: String = "",
 
-    val memberFName2: String? = null,
-    val memberLName2: String? = null,
+    val memberFName2: String = "",
+    val memberLName2: String = "",
     val relationship2: Relationship = Relationship.NONE,
-    val telephone2a: String? = null,
-    val telephone2b: String? = null,
+    val telephone2a: String = "",
+    val telephone2b: String = "",
 
-    val memberFName3: String? = null,
-    val memberLName3: String? = null,
+    val memberFName3: String = "",
+    val memberLName3: String = "",
     val relationship3: Relationship = Relationship.NONE,
-    val telephone3a: String? = null,
-    val telephone3b: String? = null,
+    val telephone3a: String = "",
+    val telephone3b: String = "",
 
-    // Program flags
+    // ===== Spiritual =====
+    val acceptedJesus: Reply = Reply.NO,
+    val acceptedJesusDate: Timestamp? = null,
+    val whoPrayed: Individual = Individual.UNCLE,
+    val whoPrayedOther: String = "",
+    val whoPrayedId: String = "",
+    val classGroup: ClassGroup = ClassGroup.SERGEANT,
+    val outcome: String = "",
+    val generalComments: String = "",
+
+    // ===== Status & program =====
+    val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
     val graduated: Reply = Reply.NO,
-    val reunitedWithFamily: Boolean = false,
+
     val sponsoredForEducation: Boolean = false,
-    val sponsorId: String? = null,
-    val sponsorNotes: String? = null,
+    val sponsorId: String = "",
+    val sponsorFName: String = "",
+    val sponsorLName: String = "",
+    val sponsorTelephone1: String = "",
+    val sponsorTelephone2: String = "",
+    val sponsorEmail: String = "",
+    val sponsorNotes: String = "",
 
-    // Spiritual notes
-    val acceptedJesusDate: Long? = null,
-    val outcome: String? = null
+    // ===== Audit =====
+    val createdAt: Timestamp? = null,
+    val updatedAt: Timestamp? = null
 )
-
-//import androidx.compose.runtime.getValue
-//import androidx.compose.runtime.mutableStateOf
-//import androidx.compose.runtime.setValue
-//import androidx.lifecycle.ViewModel
-//import androidx.lifecycle.viewModelScope
-//import com.example.zionkids.core.Utils.GenerateId
-//import com.example.zionkids.data.model.*
-//import com.example.zionkids.domain.repositories.online.ChildrenRepository
-//import dagger.hilt.android.lifecycle.HiltViewModel
-//import kotlinx.coroutines.channels.Channel
-//import kotlinx.coroutines.flow.receiveAsFlow
-//import kotlinx.coroutines.launch
-//import java.util.UUID
-//import javax.inject.Inject
-//
-//@HiltViewModel
-//class ChildFormViewModel @Inject constructor(
-//    private val repo: ChildrenRepository
-//) : ViewModel() {
-//
-//    var ui by mutableStateOf(ChildFormUiState())
-//       // private set // keep state immutable from UI
-//
-//    // ---- step control ----
-//    var step by mutableStateOf(RegistrationStatus.BASICINFOR)
-//        private set
-//
-//    fun jumpToStep(s: RegistrationStatus) {
-//        step = s
-//        ui = ui.copy(registrationStatus = s)
-//    }
-//
-//    fun goBack() {
-//        step = when (step) {
-//            RegistrationStatus.BASICINFOR -> RegistrationStatus.BASICINFOR
-//            RegistrationStatus.BACKGROUND -> RegistrationStatus.BASICINFOR
-//            RegistrationStatus.EDUCATION  -> RegistrationStatus.BACKGROUND
-//            RegistrationStatus.FAMILY     -> RegistrationStatus.EDUCATION
-//            RegistrationStatus.SPIRITUAL  -> RegistrationStatus.FAMILY
-//            RegistrationStatus.COMPLETE   -> RegistrationStatus.SPIRITUAL
-//        }
-//        ui = ui.copy(registrationStatus = step)
-//    }
-//    fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
-//        // validate current step lightly
-//        val ok = validateStep(step)
-//        if (!ok) return@launch
-//
-//        // save progress on each step (partial merge via repo.upsert)
-//        saveProgress()
-//
-//        step = when (step) {
-//            RegistrationStatus.BASICINFOR -> RegistrationStatus.BACKGROUND
-//            RegistrationStatus.BACKGROUND -> RegistrationStatus.EDUCATION
-//            RegistrationStatus.EDUCATION  -> RegistrationStatus.FAMILY
-//            RegistrationStatus.FAMILY     -> RegistrationStatus.SPIRITUAL
-//            RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
-//            RegistrationStatus.COMPLETE   -> RegistrationStatus.COMPLETE
-//        }
-//        ui = ui.copy(registrationStatus = step)
-//        onAfterSave?.invoke()
-//    }
-////    fun goNext() = viewModelScope.launch {
-////        val ok = validateStep(step)
-////        if (!ok) return@launch
-////        saveProgress() // merge-friendly partial save
-////        step = when (step) {
-////            RegistrationStatus.BASICINFOR -> RegistrationStatus.BACKGROUND
-////            RegistrationStatus.BACKGROUND -> RegistrationStatus.EDUCATION
-////            RegistrationStatus.EDUCATION  -> RegistrationStatus.FAMILY
-////            RegistrationStatus.FAMILY     -> RegistrationStatus.SPIRITUAL
-////            RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
-////            RegistrationStatus.COMPLETE   -> RegistrationStatus.COMPLETE
-////        }
-////        ui = ui.copy(registrationStatus = step)
-////    }
-//
-//    // ---- events (for one-shot navigation / messages) ----
-//    private val _events = Channel<ChildFormEvent>(Channel.BUFFERED)
-//    val events = _events.receiveAsFlow()
-//
-//    sealed interface ChildFormEvent {
-//        data class Saved(val id: String) : ChildFormEvent
-//        data class Error(val msg: String) : ChildFormEvent
-//    }
-//
-//    // ---- load existing ----
-//    fun loadForEdit(childId: String) = viewModelScope.launch {
-//        ui = ui.copy(loading = true, error = null)
-//        val existing = repo.getChildFast(childId)
-//        ui = if (existing != null) {
-//            ui.from(existing).copy(loading = false)
-//        } else {
-//            ui.copy(loading = false, error = "Child not found")
-//        }
-//    }
-//
-//    // ---- setters for fields used in UI ----
-//    fun onFirstName(v: String) { ui = ui.copy(fName = v) }
-//    fun onLastName(v: String)  { ui = ui.copy(lName = v) }
-//    fun onOtherName(v: String) { ui = ui.copy(oName = v) }
-//    fun onAge(v: String)       { ui = ui.copy(ageText = v.filter { it.isDigit() }) }
-//    fun onStreet(v: String)    { ui = ui.copy(street = v) }
-//    fun onInvitedBy(v: Individual) { ui = ui.copy(invitedBy = v) }
-//    fun onEduPref(v: EducationPreference) { ui = ui.copy(educationPreference = v) }
-//
-//    // ---- validation per step (lightweight) ----
-//    private fun validateStep(s: RegistrationStatus): Boolean =
-//        when (s) {
-//            RegistrationStatus.BASICINFOR -> {
-//                val age = ui.ageText.toIntOrNull() ?: -1
-//                when {
-//                    ui.fName.isBlank() || ui.lName.isBlank() -> {
-//                        ui = ui.copy(error = "First and last name are required.")
-//                        false
-//                    }
-//                    ui.ageText.isNotBlank() && age !in 0..25 -> {
-//                        ui = ui.copy(error = "Age should be 0–25.")
-//                        false
-//                    }
-//                    else -> { ui = ui.copy(error = null); true }
-//                }
-//            }
-//            else -> { ui = ui.copy(error = null); true }
-//        }
-//
-////    fun ensureNewIdIfNeeded() {
-////        if (ui.childId.isBlank()) {
-////            ui = ui.copy(childId = GenerateId.generateId("child"))
-////        }
-////    }
-//fun ensureNewIdIfNeeded() {
-//    if (ui.childId.isBlank()) {
-//        val now = System.currentTimeMillis()
-//        ui = ui.copy(
-//            childId = GenerateId.generateId("child"),
-//            createdAt = now,
-//            isNew = true
-//        )
-//    }
-//}
-//
-//    /** Partial merge save so we don't wipe other fields. */
-////    fun saveProgress() = viewModelScope.launch {
-////        val now = System.currentTimeMillis()
-////        val id = (ui.childId.ifBlank { UUID.randomUUID().toString() })
-////        val child = buildChild(id = id, now = now, status = step)
-////        runCatching { repo.upsert(child) }
-////            .onSuccess { ui = ui.copy(childId = id) }
-////    }
-//    fun saveProgress() = viewModelScope.launch {
-//        ensureNewIdIfNeeded()
-//        val now = System.currentTimeMillis()
-//        val id = ui.childId
-//        val child = buildChild(id = id, now = now, status = step)
-//
-//        runCatching {
-//            repo.upsert(child, isNew = false)  // patch during steps
-//        }.onSuccess {
-//            ui = ui.copy(childId = id)
-//        }
-//    }
-//
-////    fun saveProgress() = viewModelScope.launch {
-////        val now = System.currentTimeMillis()
-////        // Ensure we have an id for new forms
-////        ensureNewIdIfNeeded()
-////        val id = ui.childId
-////
-////        val child = buildChild(id = id, now = now, status = step)
-////
-////        runCatching {
-////            repo.upsert(child, isNew = ui.createdAt == 0L || ui.createdAt == now || id == ui.childId && ui.createdAt == ui.createdAt)
-////            // simpler: repo.upsert(child, isNew = false)  // if you only want to patch during steps
-////        }.onSuccess {
-////            // Keep the id; leave createdAt as set in buildChild
-////            ui = ui.copy(childId = id)
-////        }
-////    }
-//
-//
-//    /** Final save. Emits Saved(id) on success; do NOT navigate here. */
-////    fun save() = viewModelScope.launch {
-////        ui = ui.copy(saving = true, error = null)
-////
-////        val age = ui.ageText.toIntOrNull() ?: 0
-////        if (ui.fName.isBlank() || ui.lName.isBlank()) {
-////            ui = ui.copy(saving = false, error = "First and last name are required.")
-////            _events.trySend(ChildFormEvent.Error("Missing required fields"))
-////            return@launch
-////        }
-////
-////        val id = (ui.childId.ifBlank { GenerateId.generateId("child") })
-////        val now = System.currentTimeMillis()
-////        val child = buildChild(id = id, now = now, status = ui.registrationStatus)
-////
-////        runCatching { repo.upsert(
-////            child,
-////            isNew = TODO()
-////        ) }
-////            .onSuccess {
-////                ui = ui.copy(saving = false, childId = id)
-////                _events.trySend(ChildFormEvent.Saved(id))
-////            }
-////            .onFailure {
-////                ui = ui.copy(saving = false, error = it.message ?: "Failed to save")
-////                _events.trySend(ChildFormEvent.Error("Failed to save"))
-////            }
-////    }
-//    fun save() = viewModelScope.launch {
-//        ui = ui.copy(saving = true, error = null)
-//
-//        if (ui.fName.isBlank() || ui.lName.isBlank()) {
-//            ui = ui.copy(saving = false, error = "First and last name are required.")
-//            _events.trySend(ChildFormEvent.Error("Missing required fields"))
-//            return@launch
-//        }
-//
-//        if (ui.isNew && ui.childId.isBlank()) ensureNewIdIfNeeded()
-//
-//        val now = System.currentTimeMillis()
-//        val id = ui.childId
-//        val child = buildChild(id = id, now = now, status = ui.registrationStatus)
-//
-//        runCatching {
-//            repo.upsert(child, isNew = ui.isNew)
-//        }.onSuccess {
-//            ui = ui.copy(saving = false, childId = id, isNew = false) // flip after first real save
-//            _events.trySend(ChildFormEvent.Saved(id))
-//        }.onFailure {
-//            ui = ui.copy(saving = false, error = it.message ?: "Failed to save")
-//            _events.trySend(ChildFormEvent.Error("Failed to save"))
-//        }
-//    }
-//
-////    fun save() = viewModelScope.launch {
-////        ui = ui.copy(saving = true, error = null)
-////
-////        if (ui.fName.isBlank() || ui.lName.isBlank()) {
-////            ui = ui.copy(saving = false, error = "First and last name are required.")
-////            _events.trySend(ChildFormEvent.Error("Missing required fields"))
-////            return@launch
-////        }
-////
-////        if (ui.isNew && ui.childId.isBlank()) {
-////            // Safety: new record must have an id and createdAt
-////            ensureNewIdIfNeeded()
-////        }
-////
-////        val now = System.currentTimeMillis()
-////        val id = ui.childId
-////        val child = buildChild(id = id, now = now, status = ui.registrationStatus)
-////
-////        runCatching {
-////            repo.upsert(child, isNew = ui.isNew)  // <-- use the flag
-////        }.onSuccess {
-////            ui = ui.copy(saving = false, childId = id, isNew = false) // <-- flip after first save
-////            _events.trySend(ChildFormEvent.Saved(id))
-////        }.onFailure {
-////            ui = ui.copy(saving = false, error = it.message ?: "Failed to save")
-////            _events.trySend(ChildFormEvent.Error("Failed to save"))
-////        }
-////    }
-//
-////    fun save() = viewModelScope.launch {
-////        ui = ui.copy(saving = true, error = null)
-////
-////        if (ui.fName.isBlank() || ui.lName.isBlank()) {
-////            ui = ui.copy(saving = false, error = "First and last name are required.")
-////            _events.trySend(ChildFormEvent.Error("Missing required fields"))
-////            return@launch
-////        }
-////
-////        // Ensure id for new record (once)
-////        ensureNewIdIfNeeded()
-////        val id = ui.childId
-////        val isNew = ui.createdAt == 0L || id.isBlank()  // or simply: ui.childId was blank before ensureNewIdIfNeeded()
-////       // createdAt = if (ui.childId.isBlank()) now else ui.createdAt
-////        val now = System.currentTimeMillis()
-////        val child = buildChild(id = id, now = now, status = ui.registrationStatus)
-////
-////        runCatching {
-////            repo.upsert(child, isNew = isNew)
-////        }.onSuccess {
-////            ui = ui.copy(saving = false, childId = id)
-////            _events.trySend(ChildFormEvent.Saved(id))
-////        }.onFailure {
-////            ui = ui.copy(saving = false, error = it.message ?: "Failed to save")
-////            _events.trySend(ChildFormEvent.Error("Failed to save"))
-////        }
-////    }
-//
-//    fun finish() = save()
-//
-//
-//
-//    // ---- helpers ----
-//    private fun buildChild(id: String, now: Long, status: RegistrationStatus): Child =
-//        Child(
-//            childId = id,
-//            profileImg = ui.profileImg,
-//            fName = ui.fName.trim(),
-//            lName = ui.lName.trim(),
-//            oName = ui.oName?.trim(),
-//            age = ui.ageText.toIntOrNull() ?: 0,
-//            street = ui.street,
-//            invitedBy = ui.invitedBy,
-//            invitedByType = ui.invitedByType,
-//            educationPreference = ui.educationPreference,
-//            leftHomeDate = ui.leftHomeDate,
-//            reasonLeftHome = ui.reasonLeftHome,
-//            leftStreetDate = ui.leftStreetDate,
-//            lastClass = ui.lastClass,
-//            previousSchool = ui.previousSchool,
-//            reasonLeftSchool = ui.reasonLeftSchool,
-//            homePreference = ui.homePreference,
-//            goHomeDate = ui.goHomeDate,
-//            region = ui.region,
-//            district = ui.district,
-//            county = ui.county,
-//            sCounty = ui.sCounty,
-//            parish = ui.parish,
-//            village = ui.village,
-//            memberFName1 = ui.memberFName1,
-//            memberLName1 = ui.memberLName1,
-//            relationShip1 = ui.relationShip1,
-//            telephone1a = ui.telephone1a,
-//            telephone1b = ui.telephone1b,
-//            memberFName2 = ui.memberFName2,
-//            memberLName2 = ui.memberLName2,
-//            relationShip2 = ui.relationShip2,
-//            telephone2a = ui.telephone2a,
-//            telephone2b = ui.telephone2b,
-//            memberFName3 = ui.memberFName3,
-//            memberLName3 = ui.memberLName3,
-//            relationShip3 = ui.relationShip3,
-//            telephone3a = ui.telephone3a,
-//            telephone3b = ui.telephone3b,
-//            acceptedJesus = ui.acceptedJesus,
-//            acceptedJesusDate = ui.acceptedJesusDate,
-//            whoPrayed = ui.whoPrayed,
-//            graduated = ui.graduated,
-//            outcome = ui.outcome,
-//            registrationStatus = status,
-//            createdAt = if (ui.createdAt == 0L) now else ui.createdAt,
-//            updatedAt = now
-//        )
-//
-//    private fun ChildFormUiState.from(c: Child) = copy(
-//        childId = c.childId,
-//        profileImg = c.profileImg,
-//        fName = c.fName,
-//        lName = c.lName,
-//        oName = c.oName,
-//        ageText = c.age.toString(),
-//        street = c.street,
-//        invitedBy = c.invitedBy,
-//        invitedByType = c.invitedByType,
-//        educationPreference = c.educationPreference,
-//        leftHomeDate = c.leftHomeDate,
-//        reasonLeftHome = c.reasonLeftHome,
-//        leftStreetDate = c.leftStreetDate,
-//        lastClass = c.lastClass,
-//        previousSchool = c.previousSchool,
-//        reasonLeftSchool = c.reasonLeftSchool,
-//        homePreference = c.homePreference,
-//        goHomeDate = c.goHomeDate,
-//        region = c.region,
-//        district = c.district,
-//        county = c.county,
-//        sCounty = c.sCounty,
-//        parish = c.parish,
-//        village = c.village,
-//        memberFName1 = c.memberFName1,
-//        memberLName1 = c.memberLName1,
-//        relationShip1 = c.relationShip1,
-//        telephone1a = c.telephone1a,
-//        telephone1b = c.telephone1b,
-//        memberFName2 = c.memberFName2,
-//        memberLName2 = c.memberLName2,
-//        relationShip2 = c.relationShip2,
-//        telephone2a = c.telephone2a,
-//        telephone2b = c.telephone2b,
-//        memberFName3 = c.memberFName3,
-//        memberLName3 = c.memberLName3,
-//        relationShip3 = c.relationShip3,
-//        telephone3a = c.telephone3a,
-//        telephone3b = c.telephone3b,
-//        acceptedJesus = c.acceptedJesus,
-//        acceptedJesusDate = c.acceptedJesusDate,
-//        whoPrayed = c.whoPrayed,
-//        outcome = c.outcome,
-//        graduated = c.graduated,
-//        registrationStatus = c.registrationStatus,
-//        createdAt = c.createdAt
-//    )
-//}
-//
-//data class ChildFormUiState(
-//    val loading: Boolean = false,
-//    val saving: Boolean = false,
-//    val error: String? = null,
-//    val isNew: Boolean = true,
-//
-//    val childId: String = "",
-//    val profileImg: String = "",
-//    val fName: String = "",
-//    val lName: String = "",
-//    val oName: String? = null,
-//    val ageText: String = "",
-//    val street: String = "",
-//
-//    val invitedBy: Individual = Individual.UNCLE,
-//    val invitedByType: String = "",
-//    val educationPreference: EducationPreference = EducationPreference.NONE,
-//
-//    val homePreference: Reply = Reply.NO,
-//    val acceptedJesus: Reply = Reply.NO,
-//    val whoPrayed: Individual = Individual.UNCLE,
-//    val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
-//
-////    val createdAt: Long = System.currentTimeMillis(),
-//    val createdAt: Long = 0L,
-//
-//    val leftHomeDate: Long? = null,
-//    val reasonLeftHome: String? = null,
-//    val leftStreetDate: Long? = null,
-//
-//    val lastClass: String? = null,
-//    val previousSchool: String? = null,
-//    val reasonLeftSchool: String? = null,
-//
-//    val goHomeDate: Long? = null,
-//    val region: String? = null,
-//    val district: String? = null,
-//    val county: String? = null,
-//    val sCounty: String? = null,
-//    val parish: String? = null,
-//    val village: String? = null,
-//
-//    val memberFName1: String? = null,
-//    val memberLName1: String? = null,
-//    val relationShip1: RelationShip = RelationShip.NONE,
-//    val telephone1a: String? = null,
-//    val telephone1b: String? = null,
-//
-//    val memberFName2: String? = null,
-//    val memberLName2: String? = null,
-//    val relationShip2: RelationShip = RelationShip.NONE,
-//    val telephone2a: String? = null,
-//    val telephone2b: String? = null,
-//
-//    val memberFName3: String? = null,
-//    val memberLName3: String? = null,
-//    val relationShip3: RelationShip = RelationShip.NONE,
-//    val telephone3a: String? = null,
-//    val telephone3b: String? = null,
-//    val graduated: Reply = Reply.NO,
-//
-//    val acceptedJesusDate: Long? = null,
-//    val outcome: String? = null
-//)

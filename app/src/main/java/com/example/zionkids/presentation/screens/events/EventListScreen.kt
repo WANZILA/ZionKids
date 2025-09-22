@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.R
 import com.example.zionkids.data.model.Event
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.events.EventListViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
@@ -34,10 +35,15 @@ fun EventListScreen(
     toEventForm: () -> Unit,
     navigateUp: () -> Unit,
     onEventClick: (String) -> Unit = {},
-    vm: EventListViewModel = hiltViewModel()
+    vm: EventListViewModel = hiltViewModel(),
+    authVM: AuthViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var search by rememberSaveable { mutableStateOf("") }
+
+    val authUI by authVM.ui.collectAsStateWithLifecycle()
+    val canAdd = authUI.perms.canCreateEvent
+//    val canAdd = authVM.ui.perms.canCreateEvent
 
     LaunchedEffect(ui.error) {
         ui.error?.let { Log.d("EventListScreen", "Error: $it") }
@@ -57,8 +63,10 @@ fun EventListScreen(
                     IconButton(onClick = { vm.refresh() }) {
                         Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                     }
-                    IconButton(onClick = toEventForm) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add")
+                    if (canAdd){
+                        IconButton(onClick = toEventForm) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Add")
+                        }
                     }
                     IconButton(onClick = navigateUp) {
                         Icon(Icons.Outlined.Close, contentDescription = "Close")
@@ -144,7 +152,7 @@ private fun EventRow(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Updated: ${event.updatedAt.asHuman()}",
+                text = "Date: ${event.eventDate .asHuman()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
@@ -156,6 +164,6 @@ private fun EventRow(
 
 /* ---------- Timestamp formatting (timestamps all through) ---------- */
 
-private val humanFmt = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
+private val humanFmt = SimpleDateFormat("dd MMM yyyy ", Locale.getDefault())
 
 private fun Timestamp.asHuman(): String = humanFmt.format(this.toDate())

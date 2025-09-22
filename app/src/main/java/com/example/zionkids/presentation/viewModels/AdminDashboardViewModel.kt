@@ -6,30 +6,43 @@ import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
-import com.example.zionkids.data.model.RegistrationStatus
 import com.example.zionkids.data.model.Reply
 import com.example.zionkids.domain.repositories.online.ChildrenRepository
 import com.example.zionkids.domain.repositories.online.EventsRepository
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Calendar
 import javax.inject.Inject
 
 data class HomeUi(
     val loading: Boolean = true,
     val error: String? = null,
+
     // KPIs
     val childrenTotal: Int = 0,
     val childrenNewThisMonth: Int = 0,
     val childrenGraduated: Int = 0,
-    val childrenStale: Int = 0,
+    val sponsored: Int = 0,
+    val resettled: Int = 0,
+    val toBeResettled: Int = 0,
+//    val childrenStale: Int = 0,
     val eventsToday: Int = 0,
     val eventsActiveNow: Int = 0,
-    // Lists
-    val happeningToday: List<Event> = emptyList(), // next 3 by time
+    val acceptedChrist: Int = 0,
+    val yetToAcceptChrist: Int = 0,
+
+    // Lists / distributions
+    val happeningToday: List<Event> = emptyList(),               // next 3 by time
     val eduDist: Map<EducationPreference, Int> = emptyMap(),
-    val regionTop: List<Pair<String, Int>> = emptyList()
+    val regionTop: List<Pair<String, Int>> = emptyList(),
+    val streetTop: List<Pair<String, Int>> = emptyList()
 )
 
 @HiltViewModel
@@ -42,42 +55,64 @@ class AdminDashboardViewModel @Inject constructor(
     val ui: StateFlow<HomeUi> = _ui.asStateFlow()
 
     init {
-        // Combine both streams so dashboard updates in real time.
         viewModelScope.launch {
             combine(
-                childrenRepo.streamChildren(),          // Flow<List<Child>>
-                eventsRepo.streamEventSnapshots()       // Flow<List<Event>>
+                childrenRepo.streamChildren(),     // Flow<List<Child>>
+                eventsRepo.streamEventSnapshots()  // Flow<List<Event>>
             ) { children, events ->
                 compute(children, events)
             }
-                .onStart { _ui.update { it.copy(loading = true, error = null) } }
-                .catch { e -> _ui.update { it.copy(loading = false, error = e.message ?: "Failed to load") } }
+                .onStart { _ui.value = _ui.value.copy(loading = true, error = null) }
+                .catch { e -> _ui.value = _ui.value.copy(loading = false, error = e.message ?: "Failed to load") }
                 .collect { state -> _ui.value = state.copy(loading = false, error = null) }
         }
     }
 
+    // ----- Timestamp helpers -----
+    private fun Timestamp?.millisOrZero(): Long = this?.toDate()?.time ?: 0L
+    private fun Event.timeMillis(): Long = this.eventDate.toDate().time
+
     private fun compute(children: List<Child>, events: List<Event>): HomeUi {
-        val now = System.currentTimeMillis()
-        val sod = startOfDay(now)
-        val eod = endOfDay(now)
-        val (mStart, mEnd) = monthBounds(now)
+        val nowMillis = System.currentTimeMillis()
+        val sod = startOfDay(nowMillis)
+        val eod = endOfDay(nowMillis)
+        val (mStart, mEnd) = monthBounds(nowMillis)
 
+        // KPIs (all based on Firestore Timestamp fields)
         val childrenTotal = children.size
-        val childrenNewThisMonth = children.count { it.createdAt in mStart..mEnd }
+        val childrenNewThisMonth = children.count { c ->
+            val created = c.createdAt.millisOrZero()
+            created in mStart..mEnd
+        }
         val childrenGraduated = children.count { it.graduated == Reply.YES }
-        val childrenStale = children.count { it.updatedAt < now - THIRTY_DAYS }
+        val sponsored = children.count{ it.sponsoredForEducation   }
+        val resettled = children.count{ it.resettled }
+        val toBeResettled = children.count{ !it.resettled }
+//        val acceptedChrist = children.count { it.acceptedJesus == Reply.YES }
+        val acceptedChrist = children.count { c ->
+            c.acceptedJesus == Reply.YES &&
+                    c.acceptedJesusDate?.toDate()?.time?.let { it in mStart..mEnd } == true
+        }
 
-        // --- Use Timestamp all through for events ---
-        fun Event.timeMillis(): Long = this.eventDate.toDate().time
+        val yetToAcceptChrist = children.count { c ->
+            c.acceptedJesus == Reply.NO
+        }
 
-        val eventsToday = events.count { it.timeMillis() in sod..eod }
+//        val childrenStale = children.count { c ->
+//            val updated = c.updatedAt.millisOrZero()
+//            updated < nowMillis - THIRTY_DAYS
+//        }
+
+        // Events — Timestamp throughout
+        val eventsToday = events.count { e -> e.timeMillis() in sod..eod }
         val eventsActiveNow = events.count { it.eventStatus == EventStatus.ACTIVE }
 
         val happeningToday = events
-            .filter { it.timeMillis() in sod..eod }
+            .filter { e -> e.timeMillis() in sod..eod }
             .sortedBy { it.timeMillis() }
-            .take(3)
+            .take(4)
 
+        // Distributions
         val eduDist = children.groupingBy { it.educationPreference }.eachCount()
 
         val regionTop = children
@@ -85,8 +120,17 @@ class AdminDashboardViewModel @Inject constructor(
             .eachCount()
             .entries
             .sortedByDescending { it.value }
-            .take(5)
+            .take(3)
             .map { it.key to it.value }
+
+        val streetTop = children
+            .groupingBy { it.region ?: "Unknown" }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(3)
+            .map { it.key to it.value }
+
 
         return HomeUi(
             loading = false,
@@ -94,15 +138,22 @@ class AdminDashboardViewModel @Inject constructor(
             childrenTotal = childrenTotal,
             childrenNewThisMonth = childrenNewThisMonth,
             childrenGraduated = childrenGraduated,
-            childrenStale = childrenStale,
+//            childrenStale = childrenStale,
             eventsToday = eventsToday,
             eventsActiveNow = eventsActiveNow,
+            sponsored = sponsored,
+            resettled = resettled,
+            toBeResettled = toBeResettled,
             happeningToday = happeningToday,
+            acceptedChrist = acceptedChrist,
+            yetToAcceptChrist = yetToAcceptChrist,
             eduDist = eduDist,
-            regionTop = regionTop
+            regionTop = regionTop,
+            streetTop = streetTop,
         )
     }
 
+    // ----- Calendar math stays in millis -----
     private fun startOfDay(time: Long): Long = Calendar.getInstance().run {
         timeInMillis = time
         set(Calendar.HOUR_OF_DAY, 0)

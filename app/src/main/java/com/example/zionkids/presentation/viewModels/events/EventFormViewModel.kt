@@ -2,6 +2,7 @@ package com.example.zionkids.presentation.viewModels.events
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.core.utils.FormValidatorUtil
 import com.example.zionkids.core.Utils.GenerateId
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
@@ -32,13 +33,59 @@ class EventFormViewModel @Inject constructor(
         data class Error(val msg: String) : EventFormEvent
     }
 
-    // ---- setters for fields (StateFlow style) ----
-    fun onTitle(v: String)        { _ui.value = _ui.value.copy(title = v) }
-    fun onDatePicked(ts: Timestamp){ _ui.value = _ui.value.copy(eventDate = ts) }
-    fun onLocation(v: String)     { _ui.value = _ui.value.copy(location = v) }
-    fun onNotes(v: String)        { _ui.value = _ui.value.copy(notes = v) }
-    fun onAdminId(v: String)      { _ui.value = _ui.value.copy(adminId = v) }
-    fun onStatus(v: EventStatus)  { _ui.value = _ui.value.copy(eventStatus = v) }
+//    // ---- setters for fields ----
+    fun onTitle(v: String) {
+        _ui.value = _ui.value.copy(title = v)
+    }
+
+
+
+    fun onTeamName(v: String) {
+        _ui.value = _ui.value.copy(teamName = v)
+    }
+
+    fun onTeamLeaderNames(v: String) {
+        _ui.value = _ui.value.copy(teamLeaderNames = v)
+    }
+
+    fun onLeaderTelephone1(v: String) {
+        _ui.value = _ui.value.copy(leaderTelephone1 = v)
+    }
+
+    fun onLeaderTelephone2(v: String) {
+        _ui.value = _ui.value.copy(leaderTelephone2 = v)
+    }
+
+    fun onLeaderEmail(v: String) {
+        _ui.value = _ui.value.copy(leaderEmail = v)
+    }
+
+    fun onDatePicked(ts: Timestamp) {
+        _ui.value = _ui.value.copy(eventDate = ts)
+    }
+
+    fun onDatePickedMillis(millis: Long?) {
+        _ui.value = _ui.value.copy(
+            eventDate = millis?.let { Timestamp(it / 1000, ((it % 1000).toInt()) * 1_000_000) }
+                ?: _ui.value.eventDate
+        )
+    }
+
+    fun onLocation(v: String) {
+        _ui.value = _ui.value.copy(location = v)
+    }
+
+    fun onNotes(v: String) {
+        _ui.value = _ui.value.copy(notes = v)
+    }
+
+    fun onAdminId(v: String) {
+        _ui.value = _ui.value.copy(adminId = v)
+    }
+
+    fun onStatus(v: EventStatus) {
+        _ui.value = _ui.value.copy(eventStatus = v)
+    }
 
     fun ensureNewIdIfNeeded() {
         val curr = _ui.value
@@ -64,24 +111,37 @@ class EventFormViewModel @Inject constructor(
         }
     }
 
-    /** Final save */
+    /** Final save (create or update). Emits Saved(id) on success. */
     fun save() = viewModelScope.launch {
-        val before = _ui.value
-        _ui.value = before.copy(saving = true, error = null)
+        _ui.value = _ui.value.copy(saving = true, error = null)
 
         val curr = _ui.value
-        if (curr.title.isNullOrBlank()) {
-            _ui.value = curr.copy(saving = false, error = "Title is required.")
-            _events.trySend(EventFormEvent.Error("Missing required fields"))
-            return@launch
-        }
-        if (curr.location.isNullOrBlank()) {
-            _ui.value = curr.copy(saving = false, error = "Location is required.")
-            _events.trySend(EventFormEvent.Error("Missing required fields"))
+
+        val titleRes    = FormValidatorUtil.validateName(curr.title)
+        val locationRes = FormValidatorUtil.validateName(curr.location)
+        val teamRes     = FormValidatorUtil.validateName(curr.teamName)
+
+        val hasInvalid = listOf(titleRes, locationRes, teamRes).any { !it.isValid }
+        if (hasInvalid) {
+            _ui.value = curr.copy(
+                saving = false,
+                error = "Please fix the highlighted fields.",
+                // push cleaned values + errors to UI so fields show normalized text and error messages
+                title = titleRes.value,             titleError = titleRes.error,
+                location = locationRes.value,       locationError = locationRes.error,
+                teamName = teamRes.value,           teamNameError = teamRes.error,
+//                teamLeaderNames = teamLeaderNameRes.value,  teamLeaderNameError = teamLeaderNameRes.error
+
+                // If using DOB:
+                // dobText = if (dobRes.isValid) FormValidatorUtil.formatDate(dobRes.value) else curr.dobText,
+                // dobError = dobRes.error
+            )
+            _events.trySend(EventFormEvent.Error("Missing or invalid fields"))
             return@launch
         }
 
-        // Ensure ID if needed
+
+        // Ensure ID for new event
         val ensured = _ui.value
         val finalId = if (ensured.eventId.isBlank()) {
             GenerateId.generateId("event").also {
@@ -90,12 +150,16 @@ class EventFormViewModel @Inject constructor(
         } else ensured.eventId
 
         val nowTs = Timestamp.now()
-        val stateForBuild = _ui.value
-        val event = buildEvent(stateForBuild, id = finalId, nowTs = nowTs)
+        val event = buildEvent(_ui.value, id = finalId, nowTs = nowTs)
 
-        runCatching { repo.createOrUpdateEvent(event, isNew = stateForBuild.isNew) }
+        runCatching { repo.createOrUpdateEvent(event, isNew = _ui.value.isNew) }
             .onSuccess {
-                _ui.value = _ui.value.copy(saving = false, eventId = finalId, isNew = false, updatedAt = nowTs)
+                _ui.value = _ui.value.copy(
+                    saving = false,
+                    eventId = finalId,
+                    isNew = false,
+                    updatedAt = nowTs
+                )
                 _events.trySend(EventFormEvent.Saved(finalId))
             }
             .onFailure { e ->
@@ -107,27 +171,37 @@ class EventFormViewModel @Inject constructor(
     // ---- helpers ----
     private fun buildEvent(state: EventFormUIState, id: String, nowTs: Timestamp): Event =
         Event(
-            eventId    = id,
-            title      = state.title ?: "",
-            eventDate  = state.eventDate,                 // Timestamp ✅
-            location   = state.location ?: "",
-            eventStatus= state.eventStatus,
-            notes      = state.notes ?: "",
-            adminId    = state.adminId ?: "",
-            createdAt  = state.createdAt ?: nowTs,        // Timestamp ✅
-            updatedAt  = nowTs                             // Timestamp ✅
+            eventId = id,
+            title = state.title ?: "",
+            eventDate = state.eventDate,
+            teamName = state.teamName,
+            teamLeaderNames = state.teamLeaderNames,
+            leaderTelephone1 = state.leaderTelephone1,
+            leaderTelephone2 = state.leaderTelephone2,
+            leaderEmail = state.leaderEmail,
+            location = state.location ?: "",
+            eventStatus = state.eventStatus,
+            notes = state.notes ?: "",
+            adminId = state.adminId ?: "",
+            createdAt = state.createdAt ?: nowTs, // Timestamp ✅
+            updatedAt = nowTs                      // Timestamp ✅
         )
 
     private fun EventFormUIState.from(e: Event) = copy(
-        eventId    = e.eventId,
-        title      = e.title,
-        eventDate  = e.eventDate,     // Timestamp ✅
-        location   = e.location,
-        eventStatus= e.eventStatus,
-        notes      = e.notes,
-        adminId    = e.adminId,
-        createdAt  = e.createdAt,     // Timestamp ✅
-        updatedAt  = e.updatedAt      // Timestamp ✅
+        eventId = e.eventId,
+        title = e.title,
+        eventDate = e.eventDate,
+        teamName = e.teamName,
+        teamLeaderNames = e.teamLeaderNames,
+        leaderTelephone1 = e.leaderTelephone1,
+        leaderTelephone2 = e.leaderTelephone2,
+        leaderEmail = e.leaderEmail,
+        location = e.location,
+        eventStatus = e.eventStatus,
+        notes = e.notes,
+        adminId = e.adminId,
+        createdAt = e.createdAt,      // Timestamp ✅
+        updatedAt = e.updatedAt       // Timestamp ✅
     )
 }
 
@@ -137,13 +211,25 @@ data class EventFormUIState(
     val error: String? = null,
     val isNew: Boolean = true,
 
+    // per-field errors
+    val titleError: String? = null,
+    val locationError: String? = null,
+    val teamNameError: String? = null,
+    val teamLeaderNameError: String? = null,
+
+
     val eventId: String = "",
     val title: String? = null,
-    val eventDate: Timestamp = Timestamp.now(),   // Timestamp in UI state ✅
+    val eventDate: Timestamp = Timestamp.now(),
+    val teamName: String = "",
+    val teamLeaderNames: String = "",
+    val leaderTelephone1: String = "",
+    val leaderTelephone2: String = "",
+    val leaderEmail: String = "",
     val location: String? = null,
     val eventStatus: EventStatus = EventStatus.SCHEDULED,
     val notes: String? = null,
     val adminId: String? = null,
-    val createdAt: Timestamp? = null,             // Timestamp ✅
-    val updatedAt: Timestamp? = null              // Timestamp ✅
+    val createdAt: Timestamp? = null,
+    val updatedAt: Timestamp? = null
 )

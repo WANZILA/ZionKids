@@ -3,15 +3,60 @@ package com.example.zionkids.data.mappers
 import com.example.zionkids.data.model.*
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.Timestamp
+import kotlin.String
 
 // ---------- Enum converters with safe defaults (no reified) ----------
+//private fun String?.toReply(): Reply =
+//    runCatching { if (this == null) Reply.NO else Reply.valueOf(this) }
+//        .getOrDefault(Reply.NO)
+
+//private fun String?.toIndividual(): Individual =
+//    runCatching { if (this == null) Individual.UNCLE else Individual.valueOf(this) }
+//        .getOrDefault(Individual.UNCLE)
+
+//private fun String?.toEducationPref(): EducationPreference =
+//    runCatching { if (this == null) EducationPreference.NONE else EducationPreference.valueOf(this) }
+//        .getOrDefault(EducationPreference.NONE)
+
+//private fun String?.toRelationship(): Relationship =
+//    runCatching { if (this == null) Relationship.NONE else Relationship.valueOf(this) }
+//        .getOrDefault(Relationship.NONE)
+
+//private fun String?.toRegistrationStatus(): RegistrationStatus =
+//    runCatching { if (this == null) RegistrationStatus.BASICINFOR else RegistrationStatus.valueOf(this) }
+//        .getOrDefault(RegistrationStatus.BASICINFOR)
+
+private fun String?.toEventStatus(): EventStatus =
+    runCatching { if (this == null) EventStatus.SCHEDULED else EventStatus.valueOf(this) }
+        .getOrDefault(EventStatus.SCHEDULED)
+
+private fun String?.toClassGroup(): ClassGroup =
+    runCatching { if (this == null) ClassGroup.SERGEANT else ClassGroup.valueOf(this) }
+        .getOrDefault(ClassGroup.SERGEANT)
+
+private fun String?.toGender(): Gender =
+    runCatching { if (this == null) Gender.MALE else Gender.valueOf(this) }
+        .getOrDefault(Gender.MALE)
+
+
+// ---------- Safe getters ----------
+//private fun DocumentSnapshot.str(key: String): String? = this.getString(key)
+//private fun DocumentSnapshot.lng(key: String): Long?   = this.getLong(key)
+//private fun DocumentSnapshot.intPos(key: String): Int? = this.getLong(key)?.toInt()
+
+
+/* ======================= SAFE GETTERS ======================= */
+private fun DocumentSnapshot.str(key: String): String? = getString(key)
+private fun DocumentSnapshot.intPos(key: String): Int? = getLong(key)?.toInt()
+private fun DocumentSnapshot.ts(key: String): Timestamp? = getTimestamp(key)
+
+/* ======================= ENUM PARSERS (safe defaults) ======================= */
 private fun String?.toReply(): Reply =
-    runCatching { if (this == null) Reply.NO else Reply.valueOf(this) }
-        .getOrDefault(Reply.NO)
+    runCatching { if (this == null) Reply.NO else Reply.valueOf(this) }.getOrDefault(Reply.NO)
 
 private fun String?.toIndividual(): Individual =
-    runCatching { if (this == null) Individual.UNCLE else Individual.valueOf(this) }
-        .getOrDefault(Individual.UNCLE)
+    runCatching { if (this == null) Individual.UNCLE else Individual.valueOf(this) }.getOrDefault(Individual.UNCLE)
 
 private fun String?.toEducationPref(): EducationPreference =
     runCatching { if (this == null) EducationPreference.NONE else EducationPreference.valueOf(this) }
@@ -25,104 +70,6 @@ private fun String?.toRegistrationStatus(): RegistrationStatus =
     runCatching { if (this == null) RegistrationStatus.BASICINFOR else RegistrationStatus.valueOf(this) }
         .getOrDefault(RegistrationStatus.BASICINFOR)
 
-private fun String?.toEventStatus(): EventStatus =
-    runCatching { if (this == null) EventStatus.SCHEDULED else EventStatus.valueOf(this) }
-        .getOrDefault(EventStatus.SCHEDULED)
-
-// ---------- Safe getters ----------
-private fun DocumentSnapshot.str(key: String): String? = this.getString(key)
-private fun DocumentSnapshot.lng(key: String): Long?   = this.getLong(key)
-private fun DocumentSnapshot.intPos(key: String): Int? = this.getLong(key)?.toInt()
-
-// ---------- One-doc -> Child ----------
-fun DocumentSnapshot.toChildOrNull(): Child? {
-    val data = this.data ?: return null
-
-    return Child(
-        // ids
-        childId = str("childId") ?: id,
-
-        // basic
-        profileImg = str("profileImg") ?: "",
-        fName = str("fName") ?: "",
-        lName = str("lName") ?: "",
-        oName = str("oName"),
-        age = intPos("age") ?: 0,
-        dob = lng("dob") ?: 0L,
-        dobVerified = (this.getBoolean("dobVerified") ?: false),
-        street = str("street") ?: "",
-
-        // invited / edu
-        invitedBy = (str("invitedBy")).toIndividual(),
-        invitedByType = str("invitedByType") ?: "",
-        educationPreference = (str("educationPreference")).toEducationPref(),
-
-        // background
-        leftHomeDate = lng("leftHomeDate"),
-        reasonLeftHome = str("reasonLeftHome"),
-        leftStreetDate = lng("leftStreetDate"),
-
-        // education
-        lastClass = str("lastClass"),
-        previousSchool = str("previousSchool"),
-        reasonLeftSchool = str("reasonLeftSchool"),
-
-        // family resettlement
-        homePreference = (str("homePreference")).toReply(),
-        goHomeDate = lng("goHomeDate"),
-        region = str("region"),
-        district = str("district"),
-        county = str("county"),
-        subCounty = str("subCounty") ?: str("sCounty"), // fallback for old docs
-        parish = str("parish"),
-        village = str("village"),
-
-        // family members
-        memberFName1 = str("memberFName1"),
-        memberLName1 = str("memberLName1"),
-        relationship1 = (str("relationShip1") ?: str("relationship1")).toRelationship(),
-        telephone1a = str("telephone1a"),
-        telephone1b = str("telephone1b"),
-
-        memberFName2 = str("memberFName2"),
-        memberLName2 = str("memberLName2"),
-        relationship2 = (str("relationShip2") ?: str("relationship2")).toRelationship(),
-        telephone2a = str("telephone2a"),
-        telephone2b = str("telephone2b"),
-
-        memberFName3 = str("memberFName3"),
-        memberLName3 = str("memberLName3"),
-        relationship3 = (str("relationShip3") ?: str("relationship3")).toRelationship(),
-        telephone3a = str("telephone3a"),
-        telephone3b = str("telephone3b"),
-
-        // spiritual
-        acceptedJesus = (str("acceptedJesus")).toReply(),
-        acceptedJesusDate = lng("acceptedJesusDate"),
-        whoPrayed = (str("whoPrayed")).toIndividual(),
-        outcome = str("outcome"),
-
-        // program flags
-        reunitedWithFamily = this.getBoolean("reunitedWithFamily") ?: false,
-        sponsoredForEducation = this.getBoolean("sponsoredForEducation") ?: false,
-        sponsorId = str("sponsorId"),
-        sponsorNotes = str("sponsorNotes"),
-
-        // status
-        registrationStatus = (str("registrationStatus")).toRegistrationStatus(),
-        graduated = (str("graduated")).toReply(),
-
-        // times (stored as millis in your model)
-        createdAt = lng("createdAt") ?: System.currentTimeMillis(),
-        updatedAt = lng("updatedAt") ?: System.currentTimeMillis()
-    )
-}
-
-// ---------- Multi-doc -> List<Child> ----------
-fun QuerySnapshot.toChildren(): List<Child> =
-    this.documents.mapNotNull { it.toChildOrNull() }
-
-// ---------- Multi-doc -> List<Event> (with safe eventStatus) ----------
 fun QuerySnapshot.toEvents(): List<Event> =
     this.documents.mapNotNull { doc ->
         val e = doc.toObject(Event::class.java)?.copy(eventId = doc.id) ?: return@mapNotNull null
@@ -130,162 +77,415 @@ fun QuerySnapshot.toEvents(): List<Event> =
         e.copy(eventStatus = status)
     }
 
-// ---------- Child -> Firestore maps ----------
 
-/** Build a full Firestore map from a Child (for create or replace). */
+
+/* ======================= DOC -> CHILD ======================= */
+fun DocumentSnapshot.toChildOrNull(): Child? {
+    if (data == null) return null
+
+    return Child(
+        // ===== IDs =====
+        childId = str("childId") ?: id,
+
+        // ===== Basic Info =====
+        profileImg = str("profileImg") ?: "",
+
+        fName = str("fName") ?: "",
+        lName = str("lName") ?: "",
+        oName = str("oName") ?: "",
+        gender = (str("educationPreference")).toGender(),
+
+        age = intPos("age") ?: 0,
+
+        dob = ts("dob"),
+        dobVerified = getBoolean("dobVerified") ?: false,
+
+        street = str("street") ?: "",
+
+        invitedBy = (str("invitedBy")).toIndividual(),
+        invitedByIndividualId = str("invitedByIndividualId") ?: "",
+        invitedByTypeOther = str("invitedByTypeOther") ?: "",
+
+        educationPreference = (str("educationPreference")).toEducationPref(),
+
+        // ===== Background Info =====
+        leftHomeDate = ts("leftHomeDate"),
+        reasonLeftHome = str("reasonLeftHome") ?: "",
+        leaveStreetDate = ts("leaveStreetDate") ?: ts("leftStreetDate"),
+
+        // ===== Education Info =====
+        lastClass = str("lastClass") ?: "",
+        previousSchool = str("previousSchool") ?: "",
+        reasonLeftSchool = str("reasonLeftSchool") ?: "",
+
+        // ===== Family Resettlement =====
+        resettlementPreference = run {
+            val v = str("resettlementPreference")
+            try { if (v != null) ResettlementPreference.valueOf(v) else ResettlementPreference.Home }
+            catch (_: IllegalArgumentException) { ResettlementPreference.Home }
+        },
+        resettlementPreferenceOther = str("resettlementPreferenceOther") ?: "",
+        resettled = getBoolean("resettled") ?: false,
+        resettlementDate = ts("resettlementDate"),
+
+        region = str("region") ?: "",
+        district = str("district") ?: "",
+        county = str("county") ?: "",
+        subCounty = str("subCounty") ?: (str("sCounty") ?: ""),
+        parish = str("parish") ?: "",
+        village = str("village") ?: "",
+
+        // ===== Family Members 1 =====
+        memberFName1 = str("memberFName1") ?: "",
+        memberLName1 = str("memberLName1") ?: "",
+        relationship1 = (str("relationShip1") ?: str("relationship1")).toRelationship(),
+        telephone1a = str("telephone1a") ?: "",
+        telephone1b = str("telephone1b") ?: "",
+
+        // ===== Family Members 2 =====
+        memberFName2 = str("memberFName2") ?: "",
+        memberLName2 = str("memberLName2") ?: "",
+        relationship2 = (str("relationShip2") ?: str("relationship2")).toRelationship(),
+        telephone2a = str("telephone2a") ?: "",
+        telephone2b = str("telephone2b") ?: "",
+
+        // ===== Family Members 3 =====
+        memberFName3 = str("memberFName3") ?: "",
+        memberLName3 = str("memberLName3") ?: "",
+        relationship3 = (str("relationShip3") ?: str("relationship3")).toRelationship(),
+        telephone3a = str("telephone3a") ?: "",
+        telephone3b = str("telephone3b") ?: "",
+
+        // ===== Spiritual Info =====
+        acceptedJesus = (str("acceptedJesus")).toReply(),
+        acceptedJesusDate = ts("acceptedJesusDate"),
+        whoPrayed = (str("whoPrayed")).toIndividual(),
+        whoPrayedOther = str("whoPrayedOther") ?: "",
+        whoPrayedId = str("whoPrayedId") ?: "",
+        classGroup = (str("classGroup")).toClassGroup(),
+        outcome = str("outcome") ?: "",
+        generalComments = str("generalComments") ?: "",
+
+        // ===== Program statuses =====
+        registrationStatus = (str("registrationStatus")).toRegistrationStatus(),
+        graduated = (str("graduated")).toReply(),
+
+        // ===== Sponsorship / Flags =====
+        sponsoredForEducation = getBoolean("sponsoredForEducation") ?: false,
+        sponsorId = str("sponsorId") ?: "",
+        sponsorFName = str("sponsorFName") ?: "",
+        sponsorLName = str("sponsorLName") ?: "",
+        sponsorTelephone1 = str("sponsorTelephone1") ?: "",
+        sponsorTelephone2 = str("sponsorTelephone2") ?: "",
+        sponsorEmail = str("sponsorEmail") ?: "",
+        sponsorNotes = str("sponsorNotes") ?: "",
+
+        // ===== Audit =====
+        createdAt = ts("createdAt") ?: Timestamp.now(),
+        updatedAt = ts("updatedAt") ?: Timestamp.now()
+    )
+}
+
+/* ======================= SNAPSHOT -> LIST ======================= */
+fun QuerySnapshot.toChildren(): List<Child> = documents.mapNotNull { it.toChildOrNull() }
+
+/* ======================= CHILD -> FIRESTORE (FULL) ======================= */
+/** Full map for create/replace. Writes all fields; nullable fields are skipped. */
 fun Child.toFirestoreMapFull(): Map<String, Any> = buildMap {
-    // ids
+    // ===== IDs =====
     put("childId", childId)
 
-    // basic
+    // ===== Basic Info =====
     put("profileImg", profileImg)
+
     put("fName", fName)
     put("lName", lName)
-    oName?.let { put("oName", it) }
+    put("oName", oName)
+    put("gender", gender)
+
     if (age > 0) put("age", age)
-    put("dob", dob)
+
+    dob?.let { put("dob", it) }
     put("dobVerified", dobVerified)
+
     put("street", street)
 
-    // enums as strings
     put("invitedBy", invitedBy.name)
-    put("invitedByType", invitedByType)
+    put("invitedByIndividualId", invitedByIndividualId)
+    put("invitedByTypeOther", invitedByTypeOther)
+
     put("educationPreference", educationPreference.name)
 
-    // background
+    // ===== Background Info =====
     leftHomeDate?.let { put("leftHomeDate", it) }
     reasonLeftHome?.let { put("reasonLeftHome", it) }
-    leftStreetDate?.let { put("leftStreetDate", it) }
+    leaveStreetDate?.let { put("leaveStreetDate", it) }
 
-    // education
-    lastClass?.let { put("lastClass", it) }
-    previousSchool?.let { put("previousSchool", it) }
-    reasonLeftSchool?.let { put("reasonLeftSchool", it) }
+    // ===== Education Info =====
+    put("lastClass", lastClass)
+    put("previousSchool", previousSchool)
+    put("reasonLeftSchool", reasonLeftSchool)
 
-    // resettlement
-    put("homePreference", homePreference.name)
-    goHomeDate?.let { put("goHomeDate", it) }
-    region?.let { put("region", it) }
-    district?.let { put("district", it) }
-    county?.let { put("county", it) }
-    subCounty?.let { put("subCounty", it) } // use new field name
-    parish?.let { put("parish", it) }
-    village?.let { put("village", it) }
+    // ===== Family Resettlement =====
+    put("resettlementPreference", resettlementPreference.name)
+    put("resettlementPreferenceOther", resettlementPreferenceOther)
+    put("resettled", resettled)
+    resettlementDate?.let { put("resettlementDate", it) }
 
-    // family 1
-    memberFName1?.let { put("memberFName1", it) }
-    memberLName1?.let { put("memberLName1", it) }
+    put("region", region)
+    put("district", district)
+    put("county", county)
+    put("subCounty", subCounty)
+    put("parish", parish)
+    put("village", village)
+
+    // ===== Family Members 1 =====
+    put("memberFName1", memberFName1)
+    put("memberLName1", memberLName1)
     put("relationship1", relationship1.name)
-    telephone1a?.let { put("telephone1a", it) }
-    telephone1b?.let { put("telephone1b", it) }
+    put("telephone1a", telephone1a)
+    put("telephone1b", telephone1b)
 
-    // family 2
-    memberFName2?.let { put("memberFName2", it) }
-    memberLName2?.let { put("memberLName2", it) }
+    // ===== Family Members 2 =====
+    put("memberFName2", memberFName2)
+    put("memberLName2", memberLName2)
     put("relationship2", relationship2.name)
-    telephone2a?.let { put("telephone2a", it) }
-    telephone2b?.let { put("telephone2b", it) }
+    put("telephone2a", telephone2a)
+    put("telephone2b", telephone2b)
 
-    // family 3
-    memberFName3?.let { put("memberFName3", it) }
-    memberLName3?.let { put("memberLName3", it) }
+    // ===== Family Members 3 =====
+    put("memberFName3", memberFName3)
+    put("memberLName3", memberLName3)
     put("relationship3", relationship3.name)
-    telephone3a?.let { put("telephone3a", it) }
-    telephone3b?.let { put("telephone3b", it) }
+    put("telephone3a", telephone3a)
+    put("telephone3b", telephone3b)
 
-    // spiritual
+    // ===== Spiritual Info =====
     put("acceptedJesus", acceptedJesus.name)
     acceptedJesusDate?.let { put("acceptedJesusDate", it) }
     put("whoPrayed", whoPrayed.name)
-    outcome?.let { put("outcome", it) }
+    put("whoPrayedOther", whoPrayedOther)
+    put("whoPrayedId", whoPrayedId)
+    put("outcome", outcome)
+    put("classGroup", classGroup.name)
+    put("generalComments", generalComments)
 
-    // program flags
-    put("reunitedWithFamily", reunitedWithFamily)
-    put("sponsoredForEducation", sponsoredForEducation)
-    sponsorId?.let { put("sponsorId", it) }
-    sponsorNotes?.let { put("sponsorNotes", it) }
-
-    // status
+    // ===== Program statuses =====
     put("registrationStatus", registrationStatus.name)
     put("graduated", graduated.name)
 
-    // timestamps (millis, matches your model)
+    // ===== Sponsorship / Flags =====
+    put("sponsoredForEducation", sponsoredForEducation)
+    put("sponsorId", sponsorId)
+    put("sponsorFName", sponsorFName)
+    put("sponsorLName", sponsorLName)
+    put("sponsorTelephone1", sponsorTelephone1)
+    put("sponsorTelephone2", sponsorTelephone2)
+    put("sponsorEmail", sponsorEmail)
+    put("sponsorNotes", sponsorNotes)
+
+    // ===== Audit =====
     put("createdAt", createdAt)
     put("updatedAt", updatedAt)
 }
 
-/** Build a PATCH map (only meaningful fields) for merge updates. */
-fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
-    put("childId", childId)
 
+/** Build a PATCH map (only non-null / non-blank fields) for merge updates. */
+fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     fun putIfNotBlank(key: String, v: String?) { if (!v.isNullOrBlank()) put(key, v) }
     fun putIfNotNull(key: String, v: Any?) { if (v != null) put(key, v) }
 
-    // basic
+    // ===== Basic Info =====
     putIfNotBlank("profileImg", profileImg)
     putIfNotBlank("fName", fName)
     putIfNotBlank("lName", lName)
-    putIfNotNull("oName", oName)
+    putIfNotBlank("oName", oName)
+    putIfNotBlank("gender", gender.name)
+
     if (age > 0) put("age", age)
+
+    putIfNotNull("dob", dob)
     put("dobVerified", dobVerified)
-    putIfNotNull("dob", if (dob != 0L) dob else null)
+
     putIfNotBlank("street", street)
 
-    // enums
     put("invitedBy", invitedBy.name)
-    putIfNotBlank("invitedByType", invitedByType)
+    putIfNotBlank("invitedByIndividualId", invitedByIndividualId)
+    putIfNotBlank("invitedByTypeOther", invitedByTypeOther)
+
     put("educationPreference", educationPreference.name)
 
-    // dates
+    // ===== Background =====
     putIfNotNull("leftHomeDate", leftHomeDate)
-    putIfNotNull("leftStreetDate", leftStreetDate)
-    putIfNotNull("goHomeDate", goHomeDate)
+    putIfNotBlank("reasonLeftHome", reasonLeftHome)
+    putIfNotNull("leaveStreetDate", leaveStreetDate)
 
-    // education
-    putIfNotNull("lastClass", lastClass)
-    putIfNotNull("previousSchool", previousSchool)
-    putIfNotNull("reasonLeftSchool", reasonLeftSchool)
+    // ===== Education =====
+    putIfNotBlank("lastClass", lastClass)
+    putIfNotBlank("previousSchool", previousSchool)
+    putIfNotBlank("reasonLeftSchool", reasonLeftSchool)
 
-    // location (new field names)
-    putIfNotNull("region", region)
-    putIfNotNull("district", district)
-    putIfNotNull("county", county)
-    putIfNotNull("subCounty", subCounty)
-    putIfNotNull("parish", parish)
-    putIfNotNull("village", village)
+    // ===== Family Resettlement =====
+    put("resettlementPreference", resettlementPreference.name)
+    putIfNotBlank("resettlementPreferenceOther", resettlementPreferenceOther)
+    put("resettled", resettled)
+    putIfNotNull("resettlementDate", resettlementDate)
 
-    // family (renamed to relationship*)
-    putIfNotNull("memberFName1", memberFName1)
-    putIfNotNull("memberLName1", memberLName1)
+    putIfNotBlank("region", region)
+    putIfNotBlank("district", district)
+    putIfNotBlank("county", county)
+    putIfNotBlank("subCounty", subCounty)
+    putIfNotBlank("parish", parish)
+    putIfNotBlank("village", village)
+
+    // ===== Family Members 1 =====
+    putIfNotBlank("memberFName1", memberFName1)
+    putIfNotBlank("memberLName1", memberLName1)
     put("relationship1", relationship1.name)
-    putIfNotNull("telephone1a", telephone1a)
-    putIfNotNull("telephone1b", telephone1b)
+    putIfNotBlank("telephone1a", telephone1a)
+    putIfNotBlank("telephone1b", telephone1b)
 
-    putIfNotNull("memberFName2", memberFName2)
-    putIfNotNull("memberLName2", memberLName2)
+    // ===== Family Members 2 =====
+    putIfNotBlank("memberFName2", memberFName2)
+    putIfNotBlank("memberLName2", memberLName2)
     put("relationship2", relationship2.name)
-    putIfNotNull("telephone2a", telephone2a)
-    putIfNotNull("telephone2b", telephone2b)
+    putIfNotBlank("telephone2a", telephone2a)
+    putIfNotBlank("telephone2b", telephone2b)
 
-    putIfNotNull("memberFName3", memberFName3)
-    putIfNotNull("memberLName3", memberLName3)
+    // ===== Family Members 3 =====
+    putIfNotBlank("memberFName3", memberFName3)
+    putIfNotBlank("memberLName3", memberLName3)
     put("relationship3", relationship3.name)
-    putIfNotNull("telephone3a", telephone3a)
-    putIfNotNull("telephone3b", telephone3b)
+    putIfNotBlank("telephone3a", telephone3a)
+    putIfNotBlank("telephone3b", telephone3b)
 
-    // spiritual
+    // ===== Spiritual =====
     put("acceptedJesus", acceptedJesus.name)
     putIfNotNull("acceptedJesusDate", acceptedJesusDate)
     put("whoPrayed", whoPrayed.name)
-    putIfNotNull("outcome", outcome)
+    putIfNotBlank("whoPrayedOther", whoPrayedOther)
+    putIfNotBlank("whoPrayedId", whoPrayedId)
+    putIfNotBlank("outcome", outcome)
+    putIfNotBlank("generalComments", generalComments)
 
-    // program flags
-    put("reunitedWithFamily", reunitedWithFamily)
-    put("sponsoredForEducation", sponsoredForEducation)
-    putIfNotNull("sponsorId", sponsorId)
-    putIfNotNull("sponsorNotes", sponsorNotes)
-
-    // status
+    // ===== Status =====
     put("registrationStatus", registrationStatus.name)
     put("graduated", graduated.name)
+
+    // ===== Sponsorship =====
+    put("sponsoredForEducation", sponsoredForEducation)
+    putIfNotBlank("sponsorId", sponsorId)
+    putIfNotBlank("sponsorFName", sponsorFName)
+    putIfNotBlank("sponsorLName", sponsorLName)
+    putIfNotBlank("sponsorTelephone1", sponsorTelephone1)
+    putIfNotBlank("sponsorTelephone2", sponsorTelephone2)
+    putIfNotBlank("sponsorEmail", sponsorEmail)
+    putIfNotBlank("sponsorNotes", sponsorNotes)
+
+    // ===== Audit =====
+    put("createdAt", createdAt)
+    put("updatedAt", Timestamp.now())
 }
+
+
+
+///* ======================= DOC -> user ======================= */
+//fun DocumentSnapshot.toUserOrNull(): UserProfile? {
+//    if (data == null) return null
+//
+//    return UserProfile(
+//         // ===== IDs =====
+//        uid = str("uid") ?: id,
+//
+//     email = str("email") ?: "",
+//     displayName= str("displayName") ?: "",
+//     roles = (str("roles")).toRole(),
+//     disabled = getBoolean("disabled") ?: false,
+//
+//
+//    )
+//}
+//
+///* ======================= SNAPSHOT -> LISt ======================= */
+//
+//fun QuerySnapshot.toUsers(): List<UserProfile> = documents.mapNotNull { it.toUserOrNull() }
+//
+//private fun String?.toRole(): List<Role> =
+//    runCatching {
+//        if (this == null){ Role.ADMIN  }
+//        else if (this == null){ Role.LEAD  }
+//        else if (this == null){ Role.VOLUNTEER  }
+//        else if (this == null){ Role.SPONSOR  }
+//        else Role.valueOf(this)
+//    }
+//        .getOrDefault(Role.VIEWER)
+
+
+fun DocumentSnapshot.toUserOrNull(): UserProfile? {
+    if (data == null) return null
+
+    val rolesRaw = get("roles") // could be String, List<String>, List<Role>, or null
+    return UserProfile(
+        // ===== IDs =====
+        uid = str("uid") ?: id,
+
+        // ===== BASIC =====
+        email = str("email") ?: "",
+        displayName = str("displayName") ?: "",
+
+        // ===== ROLES =====
+//        userRoles = rolesRaw,
+//         userRole = (str("assignedRoles")).toAssignedRole(),
+        userRole = (str("userRole") ?: str("assignedRole") ?: str("assignedRoles") ?: str("role")).toAssignedRole(),
+
+        // ===== FLAGS =====
+        disabled = getBoolean("disabled") ?: false
+    )
+}
+
+/* ======================= SNAPSHOT -> LIST ======================= */
+fun QuerySnapshot.toUsers(): List<UserProfile> =
+    documents.mapNotNull { it.toUserOrNull() }
+
+/* ======================= ROLE PARSING ======================= */
+
+//private fun Any?.toRoleList(): List<AssignedRole> = when (this) {
+//    null -> listOf(AssignedRole.VOLUNTEER)
+//
+//    // roles: "ADMIN"
+//    is String -> listOfNotNull(this.toRoleOrNull())
+//
+//    // roles: ["ADMIN","VOLUNTEER"] or [Role.ADMIN, Role.VOLUNTEER]
+//    is Collection<*> -> this.mapNotNull { item ->
+//        when (item) {
+//            is String -> item.toRoleOrNull()
+//            is AssignedRole -> item
+//            else -> null
+//        }
+//    }.ifEmpty { listOf(AssignedRole.VOLUNTEER) }
+//
+//    // Unknown type
+//    else -> listOf(AssignedRole.VOLUNTEER)
+//}
+
+private fun String.toRoleOrNull(): AssignedRole? = runCatching {
+    // Normalize common variants; keep your current enum spelling "LEAD"
+    when (val norm = trim().uppercase()) {
+        "VIEWER" -> AssignedRole.VOLUNTEER   // alias if some data writes "LEADER"
+        else -> AssignedRole.valueOf(norm)
+    }
+}.getOrNull()
+private fun String?.toAssignedRole(): AssignedRole =
+    runCatching { if (this == null) AssignedRole.VOLUNTEER else AssignedRole.valueOf(this) }
+        .getOrDefault(AssignedRole.VOLUNTEER)
+
+//private fun String?.toAssignedRole(): AssignedRole =
+//    when (this?.trim()?.uppercase()) {
+//        null, "", "VOLUNTEER" -> AssignedRole.VOLUNTEER
+//        "LEADER"      -> AssignedRole.LEADER   // alias supported
+//        "ADMIN"               -> AssignedRole.ADMIN
+//        "VIEWER"              -> AssignedRole.VIEWER
+//        "SPONSOR"             -> AssignedRole.SPONSOR
+//        else                  -> AssignedRole.VOLUNTEER // unknowns default
+//    }
+

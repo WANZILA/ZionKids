@@ -3,7 +3,6 @@ package com.example.zionkids.presentation.screens.attendance
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDone
@@ -14,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -24,10 +22,9 @@ import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 import com.example.zionkids.presentation.viewModels.attendance.AttendanceDashboardViewModel
-import com.example.zionkids.presentation.viewModels.attendance.ChildHistory
+import com.example.zionkids.presentation.viewModels.attendance.ChildAttendanceHistory
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +32,9 @@ import java.util.Locale
 fun AttendanceDashboardScreen(
     navigateUp: () -> Unit,
     onContactGuardian: (childId: String) -> Unit,
+    toPresent: (String) -> Unit,
+    toAbsent: (String) -> Unit,
+    toConsecutiveAbsentees: () -> Unit,
     vm: AttendanceDashboardViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -95,45 +95,27 @@ fun AttendanceDashboardScreen(
                         }
 
                         // Common reasons
-                        if (ui.notesTop.isNotEmpty()) {
-                            item {
-                                SectionCard(title = "Common Reasons (absent)") {
-                                    FlowChips(
-                                        ui.notesTop.map { "${it.first} (${it.second})" }
-                                    )
-                                }
+//                        if (ui.notesTop.isNotEmpty()) {
+//                            item {
+//                                SectionCard(title = "Common Reasons (absent)") {
+//                                    FlowChips(
+//                                        ui.notesTop.map { "${it.first} (${it.second})" }
+//                                    )
+//                                }
+//                            }
+//                        }
+
+
+                        item {
+
+                            SectionCard(
+                                title = "Attendance List",
+                                onClick = { toConsecutiveAbsentees() }) {
                             }
+
                         }
 
-                        // Insights
-                        if (ui.topAttendees.isNotEmpty() || ui.frequentAbsentees.isNotEmpty()) {
-                            item {
-                                SectionCard(title = "Insights") {
-                                    if (ui.topAttendees.isNotEmpty()) {
-                                        Text("Top Attendees", fontWeight = FontWeight.SemiBold)
-                                        Spacer(Modifier.height(8.dp))
-                                        FlowChips(ui.topAttendees.map { it.fullName() })
-                                        Spacer(Modifier.height(12.dp))
-                                    }
-                                    if (ui.frequentAbsentees.isNotEmpty()) {
-                                        Text("Frequent Absentees", fontWeight = FontWeight.SemiBold)
-                                        Spacer(Modifier.height(8.dp))
-                                        FlowChips(ui.frequentAbsentees.map { it.fullName() })
-                                    }
-                                }
-                            }
-                        }
 
-                        // Histories
-                        if (ui.histories.isNotEmpty()) {
-                            items(ui.histories, key = { it.child.childId }) { hist ->
-                                HistoryRow(
-                                    hist = hist,
-                                    onOpenChildDetails = { /* navigate to child details */ },
-                                    onContactGuardian = { onContactGuardian(hist.child.childId) }
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -141,35 +123,35 @@ fun AttendanceDashboardScreen(
     }
 }
 
-@Composable
-private fun StatusChip(
-    isOffline: Boolean,
-    isSyncing: Boolean
-) {
-    when {
-        isOffline -> {
-            AssistChip(
-                onClick = {},
-                leadingIcon = { Icon(Icons.Outlined.CloudOff, contentDescription = null) },
-                label = { Text("Offline") }
-            )
-        }
-        isSyncing -> {
-            AssistChip(
-                onClick = {},
-                leadingIcon = { Icon(Icons.Outlined.Sync, contentDescription = null) },
-                label = { Text("Syncing…") }
-            )
-        }
-        else -> {
-            AssistChip(
-                onClick = {},
-                leadingIcon = { Icon(Icons.Outlined.CloudDone, contentDescription = null) },
-                label = { Text("Online") }
-            )
-        }
-    }
-}
+//@Composable
+//private fun StatusChip(
+//    isOffline: Boolean,
+//    isSyncing: Boolean
+//) {
+//    when {
+//        isOffline -> {
+//            AssistChip(
+//                onClick = {},
+//                leadingIcon = { Icon(Icons.Outlined.CloudOff, contentDescription = null) },
+//                label = { Text("Offline") }
+//            )
+//        }
+//        isSyncing -> {
+//            AssistChip(
+//                onClick = {},
+//                leadingIcon = { Icon(Icons.Outlined.Sync, contentDescription = null) },
+//                label = { Text("Syncing…") }
+//            )
+//        }
+//        else -> {
+//            AssistChip(
+//                onClick = {},
+//                leadingIcon = { Icon(Icons.Outlined.CloudDone, contentDescription = null) },
+//                label = { Text("Online") }
+//            )
+//        }
+//    }
+//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -279,8 +261,8 @@ fun FlowChips(
 
 @Composable
 fun HistoryRow(
-    hist: ChildHistory,
-    onOpenChildDetails: (childId: String) -> Unit,
+    hist: ChildAttendanceHistory,
+    onOpenChildDetails: (String) -> Unit,
     onContactGuardian: () -> Unit
 ) {
     val streak = hist.consecutiveAbsences

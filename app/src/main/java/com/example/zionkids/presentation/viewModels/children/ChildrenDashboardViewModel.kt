@@ -7,10 +7,17 @@ import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.data.model.RegistrationStatus
 import com.example.zionkids.data.model.Reply
 import com.example.zionkids.domain.repositories.online.ChildrenRepository
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 
 data class ChildrenSummaryUi(
@@ -25,6 +32,7 @@ data class ChildrenSummaryUi(
     val avgAge: Double = 0.0,
     val eduDist: Map<EducationPreference, Int> = emptyMap(),
     val regionTop: List<Pair<String, Int>> = emptyList(),
+    val streetTop: List<Pair<String, Int>> = emptyList(),
     val staleUpdates: Int = 0        // updatedAt older than 30 days
 )
 
@@ -38,37 +46,62 @@ class ChildrenDashboardViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            repo.streamChildren()  // 👈 was getAll()
+            repo.streamChildren()
                 .onStart { _ui.update { it.copy(loading = true, error = null) } }
                 .catch { e -> _ui.update { it.copy(loading = false, error = e.message ?: "Failed to load") } }
                 .collect { list -> _ui.update { compute(list) } }
         }
     }
 
+    // ---- Timestamp helpers ----
+    private fun Timestamp?.millisOrZero(): Long = this?.toDate()?.time ?: 0L
 
     private fun compute(all: List<Child>): ChildrenSummaryUi {
-        val now = System.currentTimeMillis()
-        val (startMonth, endMonth) = monthBounds(now)
+        val nowMillis = System.currentTimeMillis()
+        val (startMonth, endMonth) = monthBounds(nowMillis)
+
         val total = all.size
-        val newThisMonth = all.count { it.createdAt in startMonth..endMonth }
+        val newThisMonth = all.count { c ->
+            val created = c.createdAt.millisOrZero()
+            created in startMonth..endMonth
+        }
         val graduated = all.count { it.graduated == Reply.YES }
         val sponsored = all.count { it.sponsoredForEducation }
-        val reunited = all.count { it.reunitedWithFamily }
+        val reunited = all.count { it.resettled }
         val inProgram = all.count { it.registrationStatus != RegistrationStatus.COMPLETE }
-        val staleLimit = now - 30L * 24 * 60 * 60 * 1000
-        val staleUpdates = all.count { it.updatedAt < staleLimit }
 
-        val ages = all.mapNotNull { it.age.takeIf { a -> a > 0 } }
+        val staleLimit = nowMillis - THIRTY_DAYS
+        val staleUpdates = all.count { c -> c.updatedAt.millisOrZero() < staleLimit }
+
+        val ages = all.mapNotNull { a -> a.age.takeIf { it > 0 } }
         val avgAge = if (ages.isNotEmpty()) ages.average() else 0.0
 
         val eduDist = all.groupingBy { it.educationPreference }.eachCount()
-        val regionTop = all
-            .groupingBy { it.region ?: "Unknown" }
-            .eachCount()
-            .entries
-            .sortedByDescending { it.value }
-            .take(5)
-            .map { it.key to it.value }
+//        val regionTop = all
+//            .groupingBy { it.region ?: "Unknown" }
+//            .eachCount()
+//            .entries
+//            .sortedByDescending { it.value }
+//            .take(3)
+//            .map { it.key to it.value }
+//        val streetTop = all
+//            .groupingBy { it.street ?: "Unknown" }
+//            .eachCount()
+//            .entries
+//            .sortedByDescending { it.value }
+//            .take(3)
+//            .map { it.key to it.value }
+        // Regions: prefer child.region; skip blanks; normalize casing/whitespace
+        val regionsNorm = all.mapNotNull { child ->
+            child.region.normalizeOrNull()
+        }
+        val regionTop = topN(regionsNorm, 3)
+
+// Streets: prefer child.street, then child.address?.street; skip blanks; normalize
+        val streetsNorm = all.mapNotNull { child ->
+            (child.street ?: child?.street).normalizeOrNull()
+        }
+        val streetTop = topN(streetsNorm, 3)
 
         return ChildrenSummaryUi(
             loading = false,
@@ -82,6 +115,7 @@ class ChildrenDashboardViewModel @Inject constructor(
             avgAge = "%.1f".format(Locale.getDefault(), avgAge).toDoubleOrNull() ?: 0.0,
             eduDist = eduDist,
             regionTop = regionTop,
+            streetTop = streetTop,
             staleUpdates = staleUpdates
         )
     }
@@ -98,5 +132,31 @@ class ChildrenDashboardViewModel @Inject constructor(
         c.add(Calendar.MILLISECOND, -1)
         val end = c.timeInMillis
         return start to end
+    }
+
+    // --- helpers (put inside the ViewModel) ---
+    private fun String?.normalizeOrNull(): String? {
+        if (this == null) return null
+        val t = this.trim().replace(Regex("\\s+"), " ")
+        if (t.isEmpty()) return null
+        // Title-case (Makindye, Kisenyi, etc.)
+        return t.lowercase(Locale.getDefault())
+            .split(' ')
+            .joinToString(" ") { w -> w.replaceFirstChar { c -> c.titlecase(Locale.getDefault()) } }
+    }
+
+    private fun topN(names: List<String>, n: Int = 3): List<Pair<String, Int>> =
+        names.groupingBy { it }
+            .eachCount()
+            .toList()
+            .sortedWith(
+                compareByDescending<Pair<String, Int>> { it.second } // count desc
+                    .thenBy { it.first }                             // name asc (tie-break)
+            )
+            .take(n)
+
+
+    companion object {
+        private const val THIRTY_DAYS: Long = 30L * 24 * 60 * 60 * 1000
     }
 }

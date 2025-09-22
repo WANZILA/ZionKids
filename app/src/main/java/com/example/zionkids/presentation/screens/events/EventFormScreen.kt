@@ -1,7 +1,5 @@
 package com.example.zionkids.presentation.screens.events
 
-import android.os.Build
-import android.os.Build.VERSION_CODES
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,7 +7,29 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleLeft
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+//import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+//import androidx.compose.material3.RowDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,14 +38,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.zionkids.core.utils.DatesUtils
 import com.example.zionkids.data.model.EventStatus
-import com.example.zionkids.presentation.viewModels.events.EventFormViewModel
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.events.EventFormUIState
+import com.example.zionkids.presentation.viewModels.events.EventFormViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.collectLatest
+import java.text.SimpleDateFormat
 import java.util.Date
-
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,12 +55,14 @@ fun EventFormScreen(
     onFinished: (String) -> Unit,
     navigateUp: () -> Unit,
     vm: EventFormViewModel = hiltViewModel(),
+//    authVM: AuthViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val ui by vm.ui.collectAsState()  // ✅ this is valid now
-
+    val ui by vm.ui.collectAsStateWithLifecycle()
+//    val authUi by authVM.ui.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scroll = rememberScrollState()
+//    val canAdd = authUi.perms.canCreateEvent
 
     LaunchedEffect(Unit) {
         vm.events.collectLatest { ev ->
@@ -49,7 +72,7 @@ fun EventFormScreen(
                     navigateUp()
                 }
                 is EventFormViewModel.EventFormEvent.Error -> {
-                    // maybe show Snackbar
+                    snackbarHostState.showSnackbar(ev.msg)
                 }
             }
         }
@@ -88,10 +111,29 @@ fun EventFormScreen(
                 ) {
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { vm.save()
-                        },
-                        enabled = !(ui.loading || ui.saving)
+                        onClick = { vm.save() },
+//                        enabled = !(ui.loading || ui.saving)
                     ) { Text("Save") }
+//                    IfRole(ui.roles, anyOf = listOf(Role.ADMIN, Role.LEAD)) {
+//                        Button(
+//                            onClick = { vm.save() },
+//                            enabled = !(ui.loading || ui.saving)
+//                        ) { Text("Save") }
+//                    }
+
+
+                    /***
+                     * IfRole(
+                     *                         roles = ui.roles,
+                     *                         anyOf = listOf(Role.ADMIN, Role.LEAD)
+                     *                     ) {
+                     *                         Button(
+                     *                             onClick = { vm.save() },
+                     *                             enabled = !(ui.loading || ui.saving)
+                     *                         ) { Text("Save") }
+                     *                     }
+                     */
+
                 }
             }
         }
@@ -141,7 +183,17 @@ private fun EventFields(
             focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        isError = ui.titleError != null,   // 👈 mark field as error
+        supportingText = {                 // 👈 show error if present
+            ui.titleError?.let { err ->
+                Text(
+                    text = err,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
     )
 
     EventDateField(
@@ -155,7 +207,6 @@ private fun EventFields(
         values = EventStatus.values().toList(),
         onSelected = vm::onStatus
     )
-
     OutlinedTextField(
         value = ui.location ?: "",
         onValueChange = vm::onLocation,
@@ -168,8 +219,114 @@ private fun EventFields(
             focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
         ),
+        modifier = Modifier.fillMaxWidth(),
+        isError = ui.locationError != null,   // 👈 mark field as error
+        supportingText = {                 // 👈 show error if present
+            ui.locationError?.let { err ->
+                Text(
+                    text = err,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    )
+
+    OutlinedTextField(
+        value = ui.teamName ?: "",
+        onValueChange = vm::onTeamName,
+        label = { Text("Team Name") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        isError = ui.teamNameError != null,   // 👈 mark field as error
+        supportingText = {                 // 👈 show error if present
+            ui.teamNameError?.let { err ->
+                Text(
+                    text = err,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    )
+
+    OutlinedTextField(
+        value = ui.teamLeaderNames ?: "",
+        onValueChange = vm::onTeamLeaderNames,
+        label = { Text("Team Leader Names*") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+//        isError = ui.teamLeaderNamesError != null,   // 👈 mark field as error
+//        supportingText = {                 // 👈 show error if present
+//            ui.teamLeaderNamesError?.let { err ->
+//                Text(
+//                    text = err,
+//                    color = MaterialTheme.colorScheme.error,
+//                    style = MaterialTheme.typography.bodySmall
+//                )
+//            }
+//        }
+    )
+
+    OutlinedTextField(
+        value = ui.leaderTelephone1 ?: "",
+        onValueChange = vm::onLeaderTelephone1,
+        label = { Text("Telephone 1") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
         modifier = Modifier.fillMaxWidth()
     )
+
+    OutlinedTextField(
+        value = ui.leaderTelephone2 ?: "",
+        onValueChange = vm::onLeaderTelephone2,
+        label = { Text("Telephone 2") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+    OutlinedTextField(
+        value = ui.leaderEmail ?: "",
+        onValueChange = vm::onLeaderEmail,
+        label = { Text("Leader Email") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+
+
 
     OutlinedTextField(
         value = ui.notes ?: "",
@@ -194,14 +351,11 @@ fun EventDateField(ui: EventFormUIState, onDatePicked: (Timestamp) -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     val dateState = rememberDatePickerState(
-        initialSelectedDateMillis = ui.eventDate.toDate().time // Timestamp → millis for M3 picker
+        initialSelectedDateMillis = ui.eventDate.toDate().time // Timestamp → millis
     )
 
     OutlinedTextField(
-        value = if (Build.VERSION.SDK_INT >= VERSION_CODES.O)
-            DatesUtils.formatDate(ui.eventDate.toDate().time)
-        else
-            ui.eventDate.toDate().time.toString(),
+        value = ui.eventDate.asHumanDate(),
         onValueChange = { /* read-only */ },
         readOnly = true,
         label = { Text("Event Date") },
@@ -257,7 +411,9 @@ private fun <T : Enum<T>> EnumDropdown(
                 focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             ),
-            modifier = Modifier.menuAnchor().fillMaxWidth()
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             values.forEach { v ->
@@ -268,4 +424,10 @@ private fun <T : Enum<T>> EnumDropdown(
             }
         }
     }
+}
+
+/* ------------ Small formatting helper (no API 26 requirement) ------------ */
+private fun Timestamp.asHumanDate(): String {
+    val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    return sdf.format(this.toDate())
 }

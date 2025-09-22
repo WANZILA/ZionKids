@@ -10,11 +10,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.zionkids.R
 import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 //import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 import com.example.zionkids.presentation.viewModels.children.ChildrenDashboardViewModel
 
@@ -23,9 +27,16 @@ import com.example.zionkids.presentation.viewModels.children.ChildrenDashboardVi
 fun ChildrenDashboardScreen(
     toChildrenList: () -> Unit,
     toAddChild: () -> Unit,
-    vm: ChildrenDashboardViewModel = hiltViewModel()
+    toChildrenByEducation: (EducationPreference) -> Unit,
+    toReunited: () -> Unit,
+    toAllRegions: () -> Unit,
+    toAllStreets: () -> Unit,
+    vm: ChildrenDashboardViewModel = hiltViewModel(),
+    authVM: AuthViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsState()
+    val authUi by authVM.ui.collectAsStateWithLifecycle()
+    val canCreateChild = authUi.perms.canCreateChild
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -34,17 +45,18 @@ fun ChildrenDashboardScreen(
             ZionKidAppTopBar(
                 canNavigateBack = false,
                 navigateUp = { /* no-op */ },
+                txtLabel = stringResource(R.string.children),
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = toAddChild,
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor   = MaterialTheme.colorScheme.onSecondary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
-            }
-        }
+//        floatingActionButton = {
+//            FloatingActionButton(
+//                onClick = toAddChild,
+//                containerColor = MaterialTheme.colorScheme.secondary,
+//                contentColor   = MaterialTheme.colorScheme.onSecondary
+//            ) {
+//                Icon(Icons.Default.Add, contentDescription = "Add")
+//            }
+//        }
     ) { inner ->
         when {
             ui.loading -> Box(
@@ -72,39 +84,40 @@ fun ChildrenDashboardScreen(
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("Total", ui.total.toString(), Modifier.weight(1f))
-                        StatCard("New this month", ui.newThisMonth.toString(), Modifier.weight(1f))
                         StatCard("Fully Registered", ui.inProgram.toString(), Modifier.weight(1f))
-                    }
+          }
                 }
 
 
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Fully Registered", ui.inProgram.toString(), Modifier.weight(1f))
-                        StatCard("Reunited", ui.reunited.toString(), Modifier.weight(1f))
-
-                    }
-                }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Graduated", ui.graduated.toString(), Modifier.weight(1f))
-                        StatCard("Sponsored", ui.sponsored.toString(), Modifier.weight(1f))
-                         }
-                }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                       StatCard("Reunited", ui.reunited.toString(), Modifier.weight(1f), onClick = toReunited)
                         StatCard("Avg Age", ui.avgAge.toString(), Modifier.weight(1f))
-                        StatCard("Stale (>30d)", ui.staleUpdates.toString(), Modifier.weight(1f))
+//
                     }
                 }
+
                 item {
-                    StatCard(
-                        title = "Children",
-                        value = "View All",
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = toChildrenList
-                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if(canCreateChild){
+                            StatCard(
+                                title = "Children",
+                                value = "Add New",
+                                modifier = Modifier.weight(1f),
+                                onClick = toAddChild
+                            )
+                        }
+
+                        StatCard(
+                            title = "Children",
+                            value = "View All",
+                            modifier = Modifier.weight(1f),
+                            onClick = toChildrenList
+                        )
+                  }
+
                 }
+
 
                 // Education distribution
                 item {
@@ -112,25 +125,38 @@ fun ChildrenDashboardScreen(
                         val total = ui.eduDist.values.sum().coerceAtLeast(1)
                         EducationPreference.values().forEach { pref ->
                             val count = ui.eduDist[pref] ?: 0
-                            DistributionRow(label = pref.name, count = count, total = total)
+                            EducationPreferenceRow(
+                                label = pref.name,
+                                count = count,
+                                total = total,
+                                onClick = { toChildrenByEducation(pref) } // 👈 navigate with selected pref
+                            )
                             Spacer(Modifier.height(6.dp))
                         }
                     }
                 }
 
-                // Top regions (simple bar list)
+
                 item {
-                    SectionCard(title = "Top Regions") {
-                        val total = ui.regionTop.sumOf { it.second }.coerceAtLeast(1)
-                        ui.regionTop.forEach { (region, count) ->
-                            DistributionRow(label = region, count = count, total = total)
-                            Spacer(Modifier.height(6.dp))
-                        }
-                        if (ui.regionTop.isEmpty()) {
-                            Text("No region data yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatCard(
+                            title = "All",
+                            value = "Streets",
+                            modifier = Modifier.weight(1f),
+                            onClick = toAllStreets
+                        )
+
+                        StatCard(
+                            title = "All",
+                            value = "Regions",
+                            modifier = Modifier.weight(1f),
+                            onClick = toAllRegions
+                        )
                     }
+
                 }
+
+
             }
         }
     }
@@ -210,6 +236,34 @@ fun StatCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EducationPreferenceRow(
+    label: String,
+    count: Int,
+    total: Int,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onClick,
+        enabled = true
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+                Text("View:$count", style = MaterialTheme.typography.bodyMedium)
+            }
+            Spacer(Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = (count / total.toFloat()).coerceIn(0f, 1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+            )
         }
     }
 }

@@ -2,6 +2,7 @@ package com.example.zionkids.presentation.viewModels.events
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.zionkids.core.di.EventsRef
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.domain.repositories.online.EventSnapshot
 import com.example.zionkids.domain.repositories.online.EventsRepository
@@ -26,7 +27,8 @@ data class EventListUiState(
 
 @HiltViewModel
 class EventListViewModel @Inject constructor(
-    private val repo: EventsRepository
+    private val repo: EventsRepository,
+//    private val eventsRe: EventsRef
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(EventListUiState())
@@ -96,7 +98,20 @@ class EventListViewModel @Inject constructor(
         // Stream is live; no explicit refresh needed. Keep for UI parity.
         _ui.value = _ui.value.copy(loading = true)
         _ui.value = _ui.value.copy(loading = false)
+
     }
 
     companion object { private const val TAG = "EventListViewModel" }
+//    val eventsRef: EventsReference
+//    suspend fun normalizeEventStatuses(eventsRef: EventsRef) {
+//        val snap = eventsRef.get().await()
+//        val batch = eventsRef.firestore.batch()
+//        for (doc in snap.documents) {
+//            val raw = doc.getString("eventStatus")?.uppercase()
+//            if (raw == "COMPLETED") {
+//                batch.update(doc.reference, "eventStatus", "DONE")
+//            }
+//        }
+//        batch.commit().await()
+//    }
 }

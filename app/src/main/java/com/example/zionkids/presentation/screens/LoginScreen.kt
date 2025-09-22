@@ -1,10 +1,7 @@
 package com.example.zionkids.presentation.screens
 
-import android.content.Context
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,13 +18,11 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,65 +38,72 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import com.example.zionkids.R
 import com.example.zionkids.presentation.theme.ZionKidsTheme
-import com.example.zionkids.presentation.viewModels.AuthViewModel
+import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 //import com.example.upliftfinance.presentation.viewmodels.LoginViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 private  const val TAG = "LoginScreen"
+
 @Composable
 fun LoginScreen(
     toAdminDashboard: () -> Unit,
-   vm: AuthViewModel = hiltViewModel()
-){
+    vm: AuthViewModel
+) {
+    // ⬇️ Collect the StateFlow so UI updates when AuthUiState changes
+    val state by vm.ui.collectAsStateWithLifecycle()
 
-    val state = vm.ui
-    val isValid = state.email.contains("@") && state.password.length >= 6
+    val context = LocalContext.current
+    val keyboard = LocalSoftwareKeyboardController.current
 
+    // Navigate once when login succeeds
+    LaunchedEffect(state.isLoggedIn) {
+        if (state.isLoggedIn) toAdminDashboard()
+    }
+    // Show errors as toasts
+    LaunchedEffect(state.error) {
+        state.error?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    }
+
+    val isValid = remember(state.email, state.password) {
+        state.email.contains("@") && state.password.length >= 6
+    }
+    val signInEnabled = isValid && !state.loading
 
     ZionKidsTheme {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-//                .background(MaterialTheme.colorScheme.tertiary),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            val keyboardController = LocalSoftwareKeyboardController.current
-
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth()
-                    .align(Alignment.Center)
+                modifier = Modifier.fillMaxWidth().padding(20.dp)
             ) {
                 Text("ZionKids Login", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(24.dp))
-                // Logo
+
                 Image(
                     painter = painterResource(id = R.drawable.zion_kids_logo),
-                    contentDescription = "UpLift Logo",
+                    contentDescription = "Zion Kids Logo",
                     modifier = Modifier.size(120.dp)
                 )
+
                 Spacer(Modifier.height(24.dp))
 
+                // Email
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = vm::onEmailChange,
-
+                    label = { Text("Email") },
                     singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(
-                        color = MaterialTheme.colorScheme.onSurface
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -109,78 +111,62 @@ fun LoginScreen(
                         focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     ),
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions (
-                        onDone = {
-                            keyboardController?.hide()
-                        }
-                    ),
-
-
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(12.dp))
 
+                // Password
                 var showPwd by remember { mutableStateOf(false) }
-
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = vm::onPasswordChange,
                     label = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Lock, null) },
                     visualTransformation = if (showPwd) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         TextButton(onClick = { showPwd = !showPwd }) {
                             Text(if (showPwd) "HIDE" else "SHOW")
                         }
                     },
-                    textStyle = LocalTextStyle.current.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     ),
-                    keyboardOptions = KeyboardOptions.Default.copy(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
                     ),
-                    keyboardActions = KeyboardActions (
+                    keyboardActions = KeyboardActions(
                         onDone = {
-                            keyboardController?.hide()
+                            keyboard?.hide()
+                            if (signInEnabled) {
+                                vm.signIn(onSuccess = toAdminDashboard)
+                            }
                         }
                     ),
-
-
                     modifier = Modifier.fillMaxWidth()
                 )
+
                 if (state.error != null) {
                     Spacer(Modifier.height(8.dp))
                     Text(state.error!!, color = MaterialTheme.colorScheme.error)
                 }
 
-
                 Spacer(Modifier.height(16.dp))
 
-                // Login button
                 Button(
-                    onClick = { vm.signIn(
-                            email = state.email,
-                            password = state.password,
-                            onSuccess = {
-                                toAdminDashboard()
-                            }
-                         ) },
+                    enabled = signInEnabled,
+                    onClick = {
+                        keyboard?.hide()
+                        vm.signIn(onSuccess = toAdminDashboard)
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor   = MaterialTheme.colorScheme.onSecondary
+                        contentColor = MaterialTheme.colorScheme.onSecondary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -191,17 +177,151 @@ fun LoginScreen(
     }
 }
 
-
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    ZionKidsTheme {
-        // Light stub version for preview
-        Box(Modifier.background(MaterialTheme.colorScheme.primary)) {
-            Column(Modifier.padding(16.dp)) {
-                Text("ZionKids Login", color = MaterialTheme.colorScheme.onPrimary)
-            }
-        }
-    }
-}
+//@Composable
+//fun LoginScreen(
+//    toAdminDashboard: () -> Unit,
+//   vm: AuthViewModel = hiltViewModel()
+//){
+//
+//    val state = vm.ui
+//    val isValid = state.email.contains("@") && state.password.length >= 6
+//
+//
+//    ZionKidsTheme {
+//        Box(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(16.dp),
+////                .background(MaterialTheme.colorScheme.tertiary),
+//            contentAlignment = Alignment.Center
+//        ) {
+//            val keyboardController = LocalSoftwareKeyboardController.current
+//
+//            Column(
+//                horizontalAlignment = Alignment.CenterHorizontally,
+//                verticalArrangement = Arrangement.Center,
+//                modifier = Modifier
+//                    .padding(20.dp)
+//                    .fillMaxWidth()
+//                    .align(Alignment.Center)
+//            ) {
+//                Text("ZionKids Login", style = MaterialTheme.typography.headlineSmall)
+//                Spacer(Modifier.height(24.dp))
+//                // Logo
+//                Image(
+//                    painter = painterResource(id = R.drawable.zion_kids_logo),
+//                    contentDescription = "UpLift Logo",
+//                    modifier = Modifier.size(120.dp)
+//                )
+//                Spacer(Modifier.height(24.dp))
+//
+//                OutlinedTextField(
+//                    value = state.email,
+//                    onValueChange = vm::onEmailChange,
+//
+//                    singleLine = true,
+//                    textStyle = LocalTextStyle.current.copy(
+//                        color = MaterialTheme.colorScheme.onSurface
+//                    ),
+//                    colors = OutlinedTextFieldDefaults.colors(
+//                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+//                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+//                        focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+//                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+//                    ),
+//                    keyboardOptions = KeyboardOptions.Default.copy(
+//                        keyboardType = KeyboardType.Email,
+//                        imeAction = ImeAction.Done
+//                    ),
+//                    keyboardActions = KeyboardActions (
+//                        onDone = {
+//                            keyboardController?.hide()
+//                        }
+//                    ),
+//
+//
+//                    modifier = Modifier.fillMaxWidth()
+//                )
+//
+//                Spacer(Modifier.height(12.dp))
+//
+//                var showPwd by remember { mutableStateOf(false) }
+//
+//                OutlinedTextField(
+//                    value = state.password,
+//                    onValueChange = vm::onPasswordChange,
+//                    label = { Text("Password") },
+//                    singleLine = true,
+//                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+//                    visualTransformation = if (showPwd) VisualTransformation.None else PasswordVisualTransformation(),
+//                    trailingIcon = {
+//                        TextButton(onClick = { showPwd = !showPwd }) {
+//                            Text(if (showPwd) "HIDE" else "SHOW")
+//                        }
+//                    },
+//                    textStyle = LocalTextStyle.current.copy(
+//                        color = MaterialTheme.colorScheme.onSurface
+//                    ),
+//                    colors = OutlinedTextFieldDefaults.colors(
+//                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+//                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+//                        focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+//                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+//                    ),
+//                    keyboardOptions = KeyboardOptions.Default.copy(
+//                        keyboardType = KeyboardType.Password,
+//                        imeAction = ImeAction.Done
+//                    ),
+//                    keyboardActions = KeyboardActions (
+//                        onDone = {
+//                            keyboardController?.hide()
+//                        }
+//                    ),
+//
+//
+//                    modifier = Modifier.fillMaxWidth()
+//                )
+//                if (state.error != null) {
+//                    Spacer(Modifier.height(8.dp))
+//                    Text(state.error!!, color = MaterialTheme.colorScheme.error)
+//                }
+//
+//
+//                Spacer(Modifier.height(16.dp))
+//
+//                // Login button
+//                Button(
+//                    onClick = { vm.signIn(
+//                            email = state.email,
+//                            password = state.password,
+//                            onSuccess = {
+//                                toAdminDashboard()
+//                            }
+//                         ) },
+//                    colors = ButtonDefaults.buttonColors(
+//                        containerColor = MaterialTheme.colorScheme.secondary,
+//                        contentColor   = MaterialTheme.colorScheme.onSecondary
+//                    ),
+//                    modifier = Modifier.fillMaxWidth()
+//                ) {
+//                    Text(if (state.loading) "Signing in…" else "Sign In")
+//                }
+//            }
+//        }
+//    }
+//}
+//
+//
+//
+//@Preview(showBackground = true)
+//@Composable
+//fun LoginScreenPreview() {
+//    ZionKidsTheme {
+//        // Light stub version for preview
+//        Box(Modifier.background(MaterialTheme.colorScheme.primary)) {
+//            Column(Modifier.padding(16.dp)) {
+//                Text("ZionKids Login", color = MaterialTheme.colorScheme.onPrimary)
+//            }
+//        }
+//    }
+//}

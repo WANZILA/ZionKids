@@ -107,55 +107,37 @@ class AttendanceDashboardViewModel @Inject constructor(
                 val children = childrenSnap.children
                 val att = attSnap.attendance
                 val present = att.count { it.status == AttendanceStatus.PRESENT }
-                val total = children.size
-                val absent = (total - present).coerceAtLeast(0)
+                val absent = att.count { it.status == AttendanceStatus.ABSENT }
+//                val total = children.size
+                val total = present + absent
+//                val absent = (total - present).coerceAtLeast(0)
                 val presentPct = pct(present, total)
                 val absentPct = pct(absent, total)
 
+
+
                 // notes summary
-                val notesTop = att.filter { it.status == AttendanceStatus.ABSENT }
-                    .map { it.notes.trim() }
-                    .filter { it.isNotEmpty() }
-                    .groupingBy { normalize(it) }.eachCount()
-                    .entries.sortedByDescending { it.value }.take(5)
-                    .map { it.key to it.value }
+//                val notesTop = att.filter { it.status == AttendanceStatus.ABSENT }
+//                    .map { it.notes.trim() }
+//                    .filter { it.isNotEmpty() }
+//                    .groupingBy { normalize(it) }.eachCount()
+//                    .entries.sortedByDescending { it.value }.take(5)
+//                    .map { it.key to it.value }
 
                 // --- Use Timestamp for event times ---
-                fun Event.timeMillis(): Long = this.eventDate.toDate().time
+//                fun Event.timeMillis(): Long = this.eventDate.toDate().time
 
                 // trend (last 7 events present counts)
-                val recent = _ui.value.events.take(7)
+//                val recent = _ui.value.events.take(4)
+                val recent = _ui.value.events.take(3)
                 val trend = recent.map { ev ->
                     val count = attendanceRepo.getAttendanceOnce(ev.eventId)
                         .count { it.status == AttendanceStatus.PRESENT }
-                    label(ev.eventDate) to count
-                }.reversed()
-
-                // per-child histories + alerts
-                val histories = children.map { child ->
-                    val statuses = recent.map { ev ->
-                        attendanceRepo.getStatusForChildOnce(child.childId, ev.eventId)
-                            ?: AttendanceStatus.ABSENT
-                    }
-                    ChildHistory(
-                        child = child,
-                        lastEvents = statuses,
-                        consecutiveAbsences = consecutiveAbsencesFromNewest(statuses)
-                    )
+                    label(ev.title.trim().take(15)) to count
                 }
-                val alerts = histories.filter { it.consecutiveAbsences >= 3 }
-                    .sortedByDescending { it.consecutiveAbsences }
 
-                val topAttendees = histories
-                    .filter { it.lastEvents.isNotEmpty() && it.lastEvents.all { s -> s == AttendanceStatus.PRESENT } }
-                    .map { it.child }
-                    .take(10)
 
-                val frequentAbsentees = histories
-                    .filter { it.lastEvents.isNotEmpty() }
-                    .filter { h -> h.lastEvents.count { it == AttendanceStatus.ABSENT } >= (h.lastEvents.size / 2.0) }
-                    .map { it.child }
-                    .take(10)
+
 
                 // Status flags
                 val offlineHeuristic =
@@ -179,11 +161,11 @@ class AttendanceDashboardViewModel @Inject constructor(
                     presentPct = presentPct,
                     absentPct = absentPct,
                     trend = trend,
-                    alerts = alerts,
-                    notesTop = notesTop,
-                    topAttendees = topAttendees,
-                    frequentAbsentees = frequentAbsentees,
-                    histories = histories
+//                    alerts = alerts,
+//                    notesTop = notesTop,
+//                    topAttendees = topAttendees,
+//                    frequentAbsentees = frequentAbsentees,
+//                    histories = histories
                 )
             }
                 .catch { e ->
@@ -198,18 +180,23 @@ class AttendanceDashboardViewModel @Inject constructor(
     // helpers
     private fun pct(n: Int, d: Int) = if (d <= 0) 0 else ((n.toDouble() / d) * 100).toInt()
 
-    private fun consecutiveAbsencesFromNewest(statuses: List<AttendanceStatus>): Int {
-        var c = 0
-        for (i in statuses.indices.reversed()) if (statuses[i] == AttendanceStatus.ABSENT) c++ else break
-        return c
+//    private fun consecutiveAbsencesFromNewest(statuses: List<AttendanceStatus>): Int {
+//        var c = 0
+//        for (i in statuses.indices.reversed()) if (statuses[i] == AttendanceStatus.ABSENT) c++ else break
+//        return c
+//    }
+
+//    private fun normalize(s: String) =
+//        s.lowercase().replace(Regex("\\s+"), " ").replace(Regex("[^a-z0-9 \\-]"), "").trim()
+
+    private fun label(ts: String): String {
+        return ts
     }
 
-    private fun normalize(s: String) =
-        s.lowercase().replace(Regex("\\s+"), " ").replace(Regex("[^a-z0-9 \\-]"), "").trim()
 
     // ----- Timestamp-based labels -----
-    private fun label(ts: Timestamp): String =
-        SimpleDateFormat("MMM d", Locale.getDefault()).format(ts.toDate())
+//    private fun label(ts: Timestamp): String =
+//        SimpleDateFormat("MMM d", Locale.getDefault()).format(ts.toDate())
 
     private fun fullLabel(ts: Timestamp): String =
         SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault()).format(ts.toDate())

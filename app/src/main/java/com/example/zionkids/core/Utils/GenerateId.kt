@@ -15,7 +15,7 @@ object GenerateId {
         val timePart = System.currentTimeMillis().toString()       // full millis
         val randomPart = UUID.randomUUID().toString()
             .replace("-", "")
-            .take(8)
+            .take(6)
             .uppercase()
         return "$prefix$timePart$randomPart"
     }

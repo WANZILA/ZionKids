@@ -12,11 +12,12 @@ import com.google.firebase.Timestamp
     indices = [
         Index(value = ["graduated"]),
         Index(value = ["registrationStatus"]),
-        Index(value = ["updatedAt"]),
-        Index(value = ["backgroundUpdatedAt"]),
-        Index(value = ["educationUpdatedAt"]),
-        Index(value = ["familyUpdatedAt"]),
-        Index(value = ["spiritualUpdatedAt"])
+        Index(value = ["updatedAt"])
+        // Add these back only if you include the columns:
+        // Index(value = ["backgroundUpdatedAt"]),
+        // Index(value = ["educationUpdatedAt"]),
+        // Index(value = ["familyUpdatedAt"]),
+        // Index(value = ["spiritualUpdatedAt"])
     ]
 )
 data class Child(
@@ -24,236 +25,131 @@ data class Child(
 
     // ===== Basic Info =====
     val profileImg: String = "",
-    val profileImgUpdatedAt: Timestamp? = null,
 
     val fName: String = "",
     val lName: String = "",
-    val oName: String? = null,
-    val nameUpdatedAt: Timestamp? = null,
+    val oName: String = "",
 
     val age: Int = 0,
-    val ageUpdatedAt: Timestamp? = null,
 
     val dob: Timestamp? = null,
     val dobVerified: Boolean = false,
-    val dobUpdatedAt: Timestamp? = null,
+    val gender: Gender = Gender.MALE,
 
     val street: String = "",
-    val streetUpdatedAt: Timestamp? = null,
 
     val invitedBy: Individual = Individual.UNCLE,
-    val invitedByType: String = "",
-    val invitedByUpdatedAt: Timestamp? = null,
+    val invitedByIndividualId: String = "",
+    val invitedByTypeOther: String = "",
 
     val educationPreference: EducationPreference = EducationPreference.NONE,
-    val educationPreferenceUpdatedAt: Timestamp? = null,
 
     // ===== Background Info =====
     val leftHomeDate: Timestamp? = null,
-    val leftHomeUpdatedAt: Timestamp? = null,
-
-    val reasonLeftHome: String? = null,
-    val reasonLeftHomeUpdatedAt: Timestamp? = null,
-
-    val leftStreetDate: Timestamp? = null,
-    val leftStreetUpdatedAt: Timestamp? = null,
-
-    val backgroundUpdatedAt: Timestamp? = null,
+    val reasonLeftHome: String = "",
+    val leaveStreetDate: Timestamp? = null,
 
     // ===== Education Info =====
-    val lastClass: String? = null,
-    val lastClassUpdatedAt: Timestamp? = null,
-
-    val previousSchool: String? = null,
-    val previousSchoolUpdatedAt: Timestamp? = null,
-
-    val reasonLeftSchool: String? = null,
-    val reasonLeftSchoolUpdatedAt: Timestamp? = null,
-
-    val educationUpdatedAt: Timestamp? = null,
+    val lastClass: String = "",
+    val previousSchool: String = "",
+    val reasonLeftSchool: String = "",
 
     // ===== Family Resettlement =====
-    val homePreference: Reply = Reply.NO,
-    val homePreferenceUpdatedAt: Timestamp? = null,
+    val resettlementPreference: ResettlementPreference = ResettlementPreference.Home,
+    val resettlementPreferenceOther: String = "",
+    val resettled: Boolean = false,
+    val resettlementDate: Timestamp? = null,
 
-    val goHomeDate: Timestamp? = null,
-    val goHomeUpdatedAt: Timestamp? = null,
-
-    val region: String? = null,
-    val district: String? = null,
-    val county: String? = null,
-    val subCounty: String? = null,
-    val parish: String? = null,
-    val village: String? = null,
-    val locationUpdatedAt: Timestamp? = null,
+    val region: String = "",
+    val district: String = "",
+    val county: String = "",
+    val subCounty: String = "",
+    val parish: String = "",
+    val village: String = "",
 
     // ===== Family Members 1 =====
-    val memberFName1: String? = null,
-    val memberLName1: String? = null,
+    val memberFName1: String = "",
+    val memberLName1: String = "",
     val relationship1: Relationship = Relationship.NONE,
-    val telephone1a: String? = null,
-    val telephone1b: String? = null,
-    val familyContact1UpdatedAt: Timestamp? = null,
+    val telephone1a: String = "",
+    val telephone1b: String = "",
 
     // ===== Family Members 2 =====
-    val memberFName2: String? = null,
-    val memberLName2: String? = null,
+    val memberFName2: String = "",
+    val memberLName2: String = "",
     val relationship2: Relationship = Relationship.NONE,
-    val telephone2a: String? = null,
-    val telephone2b: String? = null,
-    val familyContact2UpdatedAt: Timestamp? = null,
+    val telephone2a: String = "",
+    val telephone2b: String = "",
 
     // ===== Family Members 3 =====
-    val memberFName3: String? = null,
-    val memberLName3: String? = null,
+    val memberFName3: String = "",
+    val memberLName3: String = "",
     val relationship3: Relationship = Relationship.NONE,
-    val telephone3a: String? = null,
-    val telephone3b: String? = null,
-    val familyContact3UpdatedAt: Timestamp? = null,
-
-    val familyUpdatedAt: Timestamp? = null,
+    val telephone3a: String = "",
+    val telephone3b: String = "",
 
     // ===== Spiritual Info =====
     val acceptedJesus: Reply = Reply.NO,
-    val acceptedJesusUpdatedAt: Timestamp? = null,
-
     val acceptedJesusDate: Timestamp? = null,
     val whoPrayed: Individual = Individual.UNCLE,
-    val outcome: String? = null,
-    val spiritualNotesUpdatedAt: Timestamp? = null,
-
-    val spiritualUpdatedAt: Timestamp? = null,
+    val whoPrayedOther: String = "",
+    val whoPrayedId: String = "",
+    val outcome: String = "",
+    val generalComments: String = "",
+    val classGroup: ClassGroup = ClassGroup.SERGEANT,
 
     // ===== Program statuses =====
     val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
-    val registrationStatusUpdatedAt: Timestamp? = null,
-
     val graduated: Reply = Reply.NO,
-    val graduatedUpdatedAt: Timestamp? = null,
 
     // ===== Sponsorship/Family flags =====
-    val reunitedWithFamily: Boolean = false,
-    val reunitedWithFamilyUpdatedAt: Timestamp? = null,
-
     val sponsoredForEducation: Boolean = false,
-    val sponsorId: String? = null,
-    val sponsorNotes: String? = null,
-    val sponsorshipUpdatedAt: Timestamp? = null,
+    val sponsorId: String = "",
+    val sponsorFName: String = "",
+    val sponsorLName: String = "",
+    val sponsorTelephone1: String = "",
+    val sponsorTelephone2: String = "",
+    val sponsorEmail: String = "",
+    val sponsorNotes: String = "",
 
     // ===== Audit =====
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
-)
+) {
+    fun fullName(): String =
+        listOf(fName, oName, lName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
 
-enum class Individual { UNCLE, CHILD, OTHER }
+    fun hasPhone(): Boolean =
+        listOf(telephone1a, telephone1b, telephone2a, telephone2b, telephone3a, telephone3b)
+            .any { it.trim().isNotEmpty() }
+
+    fun addressLine(): String =
+        listOf(village, parish, subCounty, county, district, region)
+            .map { it.trim() }.filter { it.isNotEmpty() }.joinToString(", ")
+
+    fun registrationProgress(): Int = when (registrationStatus) {
+        RegistrationStatus.BASICINFOR -> 1
+        RegistrationStatus.BACKGROUND -> 2
+        RegistrationStatus.EDUCATION -> 3
+        RegistrationStatus.FAMILY -> 4
+        RegistrationStatus.SPONSORSHIP -> 5
+        RegistrationStatus.SPIRITUAL -> 6
+        RegistrationStatus.COMPLETE -> 7
+    }
+}
+
+enum class Individual { UNCLE, AUNTY, CHILD, OTHER }
 enum class EducationPreference { SCHOOL, SKILLING, NONE }
+enum class ResettlementPreference { Home, Phaneroo, Other }
 enum class Reply { YES, NO }
 enum class Relationship { NONE, PARENT, UNCLE, AUNTY, OTHER }
-enum class RegistrationStatus { BASICINFOR, BACKGROUND, EDUCATION, FAMILY, SPIRITUAL, COMPLETE }
 
-//
-//@Keep
-//@Entity(tableName = "children", indices = [Index(value = ["childId"], unique = true)])
-//data class Child(
-//    // Basic Info
-//    // @DocumentId
-//    @PrimaryKey val childId: String = "",
-//    val profileImg: String = "",
-//    val fName: String = "",
-//    val lName: String = "",
-//    val oName: String? = null,
-//    val age: Int = 0,
-//    val dob: Long = 0,
-//    val dobVerified: Boolean = false,
-//    val street: String = "",
-//    val invitedBy: Individual = Individual.UNCLE,
-//    val invitedByType: String = "",
-//    val educationPreference: EducationPreference = EducationPreference.NONE,
-//
-//    // Background Info
-//    val leftHomeDate: Long? = null,
-//    val reasonLeftHome: String? = null,
-//    val leftStreetDate: Long? = null,
-//
-//    // Education Info
-//    val lastClass: String? = null,
-//    val previousSchool: String? = null,
-//    val reasonLeftSchool: String? = null,
-//
-//    // Family Resettlement
-//    val homePreference: Reply = Reply.NO,
-//    val goHomeDate: Long? = null,
-//    val region: String? = null,
-//    val district: String? = null,
-//    val county: String? = null,
-//    val sCounty: String? = null,
-//    val parish: String? = null,
-//    val village: String? = null,
-//
-//    // Family Members 1
-//    val memberFName1: String? = null,
-//    val memberLName1: String? = null,
-//    val relationShip1: RelationShip = RelationShip.NONE,
-//    val telephone1a: String? = null,
-//    val telephone1b: String? = null,
-//
-//    // Family Members 2
-//    val memberFName2: String? = null,
-//    val memberLName2: String? = null,
-//    val relationShip2: RelationShip = RelationShip.NONE,
-//    val telephone2a: String? = null,
-//    val telephone2b: String? = null,
-//
-//    // Family Members 3
-//    val memberFName3: String? = null,
-//    val memberLName3: String? = null,
-//    val relationShip3: RelationShip = RelationShip.NONE,
-//    val telephone3a: String? = null,
-//    val telephone3b: String? = null,
-//
-//    // Spiritual Info
-//    val acceptedJesus: Reply = Reply.NO,
-//    val acceptedJesusDate: Long? = null,
-//    val whoPrayed: Individual = Individual.UNCLE,
-//    val outcome: String? = null,
-//
-//    // Sync & Status
-//    val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
-//    val graduated: Reply = Reply.NO,
-//    val createdAt: Long = System.currentTimeMillis(),
-//    val updatedAt: Long = System.currentTimeMillis()
-//)
-//
-// enum class Individual{
-//     UNCLE,
-//     CHILD,
-//     Other
-// }
-////can a child be sponsore to go for education while at reunited with the family
-//enum class EducationPreference{
-//    SCHOOL,
-//    SKILLING,
-//    NONE
-//}
-//
-//enum class Reply{
-//    YES,
-//    NO
-//}
-//
-//enum class RelationShip{
-//    NONE,
-//    PARENT,
-//    UNCLE,
-//    AUNTY,
-//    OTHER
-//}
-//
-//enum class RegistrationStatus{
-//    BASICINFOR,
-//    BACKGROUND,
-//    EDUCATION,
-//    FAMILY,
-//    SPIRITUAL,
-//    COMPLETE
-//}
+enum class ClassGroup {
+    SERGEANT,
+    LIEUTENANT,
+    CAPTAIN,
+    GENERAL,
+}
+
+enum class Gender { MALE, FEMALE }
+enum class RegistrationStatus { BASICINFOR, BACKGROUND, EDUCATION, FAMILY,SPONSORSHIP, SPIRITUAL, COMPLETE }
