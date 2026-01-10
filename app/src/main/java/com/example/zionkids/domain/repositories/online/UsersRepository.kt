@@ -6,7 +6,9 @@ import com.example.zionkids.core.di.UsersRef
 import com.example.zionkids.data.mappers.toUsers
 import com.example.zionkids.data.model.AssignedRole
 import com.example.zionkids.data.model.UserProfile
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -58,7 +60,7 @@ interface UsersRepository {
     suspend fun registerUserAsAdmin(
         adminAuth: FirebaseAuth,
         email: String,
-        password: String,
+//        password: String,
         displayName: String? = null,
         userRole: AssignedRole,
         disabled: Boolean = false
@@ -263,17 +265,31 @@ class UsersRepositoryImpl @Inject constructor(
 
     // CREATE new user profile (admin stays logged in via secondary auth as you already set up)
     // UsersRepositoryImpl.kt
+    // UsersRepository.kt (or wherever your repo impl lives)
+    // ---------- THE IMPORTANT PART ----------
+// CREATE new user profile (admin stays logged in via secondary auth)
     override suspend fun registerUserAsAdmin(
         adminAuth: FirebaseAuth,
         email: String,
-        password: String,
+        // password: String,          // ← keep commented (no plaintext)
         displayName: String?,
         userRole: AssignedRole,
         disabled: Boolean
     ): UserProfile {
+        // 0) Generate a throwaway temp password (never stored)
+        val tempPassword = buildString {
+            val pool = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#\$%^&*()-_=+"
+            repeat(20) { append(pool.random()) }
+        }
+
         // 1) Create Firebase Auth user on secondary auth (does NOT touch admin session)
-        val result = adminAuth.createUserWithEmailAndPassword(email.trim(), password).await()
+        val result = adminAuth.createUserWithEmailAndPassword(email.trim(), tempPassword).await()
         val fbUser = result.user ?: error("Firebase user missing after sign-up")
+
+        // Optional: set displayName without switching sessions
+        fbUser.updateProfile(
+            userProfileChangeRequest { this.displayName = displayName ?: "" }
+        ).await()
 
         // 2) Compose profile
         val profile = UserProfile(
@@ -297,8 +313,63 @@ class UsersRepositoryImpl @Inject constructor(
         )
         usersRef.document(profile.uid).set(data).await()
 
+        // 4) KISS: just send the reset email; let Google’s hosted page handle the password UI
+        //    No ActionCodeSettings, no URL, Spark-friendly.
+        adminAuth.sendPasswordResetEmail(profile.email.toString()).await()   // ← CHANGED
+
         return profile
     }
+
+//    override suspend fun sendPasswordReset(email: String) {
+//        val actionSettings = ActionCodeSettings.newBuilder()
+//            .setUrl("https://yourapp.example.com/postSignIn")
+//            .setAndroidPackageName("com.example.zionkids", true, null)
+//            .setHandleCodeInApp(true)
+//            .build()
+//
+//        FirebaseAuth.getInstance().sendPasswordResetEmail(email.trim(), actionSettings).await()
+//    }
+
+    override suspend fun sendPasswordReset(email: String) {
+        adminAuth.sendPasswordResetEmail(email).await()
+    }
+
+//    override suspend fun registerUserAsAdmin(
+//        adminAuth: FirebaseAuth,
+//        email: String,
+////        password: String,
+//        displayName: String?,
+//        userRole: AssignedRole,
+//        disabled: Boolean
+//    ): UserProfile {
+//        // 1) Create Firebase Auth user on secondary auth (does NOT touch admin session)
+//        val result = adminAuth.createUserWithEmailAndPassword(email.trim(), password).await()
+//        val fbUser = result.user ?: error("Firebase user missing after sign-up")
+//
+//        // 2) Compose profile
+//        val profile = UserProfile(
+//            uid = fbUser.uid,
+//            email = email.trim().lowercase(),
+//            displayName = displayName ?: "",
+//            userRole = userRole,
+//            disabled = disabled
+//        )
+//
+//        // 3) Write /users/{uid} with timestamps
+//        val data = hashMapOf(
+//            "uid" to profile.uid,
+//            "email" to profile.email,
+//            "displayName" to profile.displayName,
+//            "userRole" to profile.userRole,
+//            "deletedUser" to false,
+//            "disabled" to profile.disabled,
+//            "createdAt" to FieldValue.serverTimestamp(),
+//            "updatedAt" to FieldValue.serverTimestamp()
+//        )
+//        usersRef.document(profile.uid).set(data).await()
+//
+//        return profile
+//    }
 
     // EDIT existing user profile (DO NOT touch createdAt; only bump updatedAt)
     override suspend fun upsertProfileByUid(uid: String, profile: UserProfile) {
@@ -365,8 +436,6 @@ class UsersRepositoryImpl @Inject constructor(
         }.await()
     }
 
-    override suspend fun sendPasswordReset(email: String) {
-        adminAuth.sendPasswordResetEmail(email).await()
-    }
+
 
 }

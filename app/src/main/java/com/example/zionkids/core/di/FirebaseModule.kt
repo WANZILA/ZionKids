@@ -127,6 +127,19 @@ object FirestoreModule {
     fun provideLockedAccountsCollection(db: FirebaseFirestore): CollectionReference =
         db.collection("authAttempts")
 
+    @Provides
+    @Singleton
+    @TechnicalSkills
+    fun provideTechnicalSkillsCollection(db: FirebaseFirestore): CollectionReference =
+        db.collection("technicalSkills")
+
+
+    @Provides
+    @Singleton
+    @Streets
+    fun provideStreetCollection(db: FirebaseFirestore): CollectionReference =
+        db.collection("streets")
+
 
 
 }

@@ -109,8 +109,8 @@ class EventsRepositoryImpl @Inject constructor(
     override fun streamEventSnapshots() = callbackFlow<List<Event>> {
         val q = eventsRef
             .orderBy("eventDate", Query.Direction.DESCENDING)
-            .orderBy("updatedAt", Query.Direction.DESCENDING)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
+//            .orderBy("updatedAt", Query.Direction.DESCENDING)
+//            .orderBy("createdAt", Query.Direction.DESCENDING)
 
         val registration = q.addSnapshotListener { snap, err ->
             if (err != null) {

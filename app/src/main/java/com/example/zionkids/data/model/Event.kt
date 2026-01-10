@@ -1,9 +1,26 @@
 package com.example.zionkids.data.model
 
+import androidx.annotation.Keep
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import com.google.firebase.Timestamp
 
+@Keep
+@Entity(
+    tableName = "events",
+    indices = [
+        Index(value = ["title"]),
+        Index(value = ["teamName"]),
+        Index(value = ["eventDate"]),
+        Index(value = ["updatedAt"]),
+        Index(value = ["isDeleted"]),
+        Index(value = ["isDirty"]),
+        Index(value = ["isDeleted", "updatedAt"])
+    ]
+)
 data class Event(
-    val eventId: String = "",
+    @PrimaryKey val eventId: String = "",
     val title: String = "",
     val eventDate: Timestamp = Timestamp.now(),
     val teamName: String = "",
@@ -16,7 +33,13 @@ data class Event(
     val notes: String = "",
     val adminId: String = "",
     val createdAt: Timestamp = Timestamp.now(),
-    val updatedAt: Timestamp = Timestamp.now()
+    val updatedAt: Timestamp = Timestamp.now(),
+    //syn helpers
+    val isDirty: Boolean = false,
+    // Soft-deletes (tombstones) so Room remains source of truth and we can sync deletions.
+    val isDeleted: Boolean = false,
+    // Cheap conflict resolution: prefer higher version (server increments), else newer updatedAt.
+    val version: Long = 0L
 )
 
 

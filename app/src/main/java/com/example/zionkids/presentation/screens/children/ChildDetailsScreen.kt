@@ -20,9 +20,9 @@ import com.example.zionkids.presentation.screens.widgets.DeleteIconWithConfirm
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.children.ChildDetailsViewModel
 import com.google.firebase.Timestamp
-import kotlinx.coroutines.flow.collect
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,15 +52,17 @@ fun ChildDetailsScreen(
 //            }
 //        }
 //    }
-    LaunchedEffect(vm) {
-        vm.events.collect { ev ->
+        LaunchedEffect(Unit) {
+               vm.events.collectLatest { ev ->
             when (ev) {
                 is ChildDetailsViewModel.Event.Deleted -> {
                     snackbarHostState.showSnackbar("Child deleted")
                     toChildrenList()
                 }
                 is ChildDetailsViewModel.Event.Error -> {
+                    toChildrenList()
                     snackbarHostState.showSnackbar(ev.msg)
+
                 }
             }
         }
@@ -213,14 +215,14 @@ private fun DetailsContent(child: Child) {
 
         item {
             CollapsibleSection("Sponsorship", openSponsorship, { openSponsorship = !openSponsorship }) {
-                Field("Sponsored for education", if (child.sponsoredForEducation) "Yes" else "No")
-                Field("Sponsor ID", child.sponsorId.ifBlank { "-" })
-                Field("Sponsor first name", child.sponsorFName.ifBlank { "-" })
-                Field("Sponsor last name", child.sponsorLName.ifBlank { "-" })
-                Field("Sponsor phone 1", child.sponsorTelephone1.ifBlank { "-" })
-                Field("Sponsor phone 2", child.sponsorTelephone2.ifBlank { "-" })
-                Field("Sponsor email", child.sponsorEmail.ifBlank { "-" })
-                Field("Sponsor notes", child.sponsorNotes.ifBlank { "-" })
+                Field("Sponsored for education", if (child.partnershipForEducation) "Yes" else "No")
+                Field("Sponsor ID", child.partnerId.ifBlank { "-" })
+                Field("Sponsor first name", child.partnerFName.ifBlank { "-" })
+                Field("Sponsor last name", child.partnerLName.ifBlank { "-" })
+                Field("Sponsor phone 1", child.partnerTelephone1.ifBlank { "-" })
+                Field("Sponsor phone 2", child.partnerTelephone2.ifBlank { "-" })
+                Field("Sponsor email", child.partnerEmail.ifBlank { "-" })
+                Field("Sponsor notes", child.partnerNotes.ifBlank { "-" })
             }
         }
 

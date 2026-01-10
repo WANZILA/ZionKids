@@ -1,5 +1,8 @@
 package com.example.zionkids.presentation.viewModels.children
 
+//import ChildrenSyncWorker
+import com.example.zionkids.domain.sync.ChildrenSyncWorker
+
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
@@ -7,13 +10,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.core.utils.FormValidatorUtil
 import com.example.zionkids.core.Utils.GenerateId
+import com.example.zionkids.core.Utils.picker.PickerFeature
+import com.example.zionkids.core.Utils.picker.PickerOption
 import com.example.zionkids.data.model.*
-import com.example.zionkids.domain.repositories.online.ChildrenRepository
-import com.example.zionkids.presentation.viewModels.events.EventFormViewModel.EventFormEvent
+import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
+import com.example.zionkids.domain.repositories.online.StreetsRepository
+import com.example.zionkids.domain.repositories.online.TechnicalSkillsRepository
+//import com.example.zionkids.domain.sync.ChildrenSyncWorker
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -23,11 +36,45 @@ private const val MAX_AGE = 25
 
 @HiltViewModel
 class ChildFormViewModel @Inject constructor(
-    private val repo: ChildrenRepository
+//    private val repo: ChildrenRepository,
+    val repo: OfflineChildrenRepository,
+    private val techRepo: TechnicalSkillsRepository,
+    private val streetRepo: StreetsRepository,
+    @ApplicationContext private val appContext: android.content.Context,
+//    private val work: WorkManager
 ) : ViewModel() {
 
     var ui by mutableStateOf(ChildFormUiState())
 
+    // Build feature instances by passing the repo flows
+
+    val streetPicker = PickerFeature(
+        scope = viewModelScope,
+        optionsFlow = streetRepo.streetsPickerWatchAll()
+    )
+
+    fun onStreetPicked(opt: PickerOption) {
+        // update your form state with client id/name/img
+//        update { copy(clientId = opt.id, clientName = opt.name, clientImage = opt.imageUrl) }
+        ui =  ui.copy(
+            street = opt.name
+        )
+        streetPicker.clearQuery()
+    }
+
+    val technicalSkillsPicker = PickerFeature(
+        scope = viewModelScope,
+        optionsFlow = techRepo.techSkillsPickerWatchAll()
+    )
+
+    fun onTechnicalSkillsPicked(opt: PickerOption) {
+        // update your form state with client id/name/img
+//        update { copy(clientId = opt.id, clientName = opt.name, clientImage = opt.imageUrl) }
+        ui.copy(
+            technicalSkills = opt.name
+        ).also { ui = it }
+            technicalSkillsPicker.clearQuery()
+    }
 
     // ---- step control ----
     var step by mutableStateOf(RegistrationStatus.BASICINFOR)
@@ -92,20 +139,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     }
 
     // ---- common setters used by UI ----
-//    fun onFirstName(v: String) {
-//        val cleaned = cleanName(v)
-//        ui = ui.copy(
-//            fName = cleaned,
-//            fNameError = validateName(cleaned)
-//        )
-//    }
-//    fun onLastName(v: String) {
-//        val cleaned = cleanName(v)
-//        ui = ui.copy(
-//            lName = cleaned,
-//            lNameError = validateName(cleaned)
-//        )
-//    }
     fun onFirstName(v: String) {
         val res = FormValidatorUtil.validateName(v)   // allows letters, digits, _, -, ., ', :
         ui = ui.copy(fName = res.value, fNameError = res.error)
@@ -123,30 +156,21 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     }
 
 
-    fun onOtherName(v: String) { ui = ui.copy(oName = v) }
-//    fun onAge(v: String) {
-//        val digitsOnly = v.filter { it.isDigit() }.take(2) // ages 0–25 ⇒ 2 digits enough
-//        ui = ui.copy(
-//            ageText = digitsOnly,
-//            ageError = validateAgeText(digitsOnly)
-//        )
-//    }
 
-//    fun onStreet(v: String) {
-//        val cleaned = cleanName(v)
-//        ui = ui.copy(
-//            street = cleaned,
-//            streetError = validateName(cleaned)
-//        )
-//    }
+    fun onOtherName(v: String) { ui = ui.copy(oName = v) }
+
     fun onInvitedBy(v: Individual) { ui = ui.copy(invitedBy = v) }
     fun onEduPref(v: EducationPreference) { ui = ui.copy(educationPreference = v) }
-    fun onGender(v: Gender) { ui = ui.copy( gender = v) }
-    fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
+    fun onTechSkills(v: String)  { ui = ui.copy(technicalSkills = v) }
+    fun onFormerSponsor(v: Relationship)  { ui = ui.copy(formerSponsor = v) }
+    fun onFormerSponsorOther(v: String)  { ui = ui.copy(formerSponsorOther = v) }
+    fun onTechnicalSkills(v: String) { ui = ui.copy( technicalSkills = v) }
+    fun onConfessedBy(v: ConfessedBy)  { ui = ui.copy(confessedBy = v) }
+    fun onMinistryName(v: String) { ui = ui.copy( ministryName = v) }
 
-    // Timestamp setters
-//    fun onDob(ts: Timestamp?) { ui = ui.copy(dob = ts) }
-    fun onDobMillis(millis: Long?) { ui = ui.copy(dob = millis?.let { Timestamp(it / 1000, ((it % 1000).toInt()) * 1_000_000) }) }
+    fun onGender(v: Gender) { ui = ui.copy( gender = v) }
+//    fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
+
     fun onDobVerified(v: Boolean) { ui = ui.copy(dobVerified = v) }
 
     fun onSubCounty(v: String?) { ui = ui.copy(subCounty = v ?: "") }
@@ -159,9 +183,13 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     }
     fun generalNotes(v: String?) { ui = ui.copy(generalComments = v ?: "") }
 
-    // In ChildFormViewModel
+    fun onClassGroup(v: ClassGroup) {
+        // If you added validateStreet() in the util, call that; otherwise reuse validateName:
+//        val res = FormValidatorUtil.validateName(v)
+        ui = ui.copy(classGroup = v)
+    }
 
-// In ChildFormViewModel
+
 
     private val kampalaTz = java.util.TimeZone.getTimeZone("Africa/Kampala")
 
@@ -297,6 +325,47 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         runCatching { repo.upsert(child, isNew = ui.isNew) }
             .onSuccess {
                 ui = ui.copy(saving = false, childId = id, isNew = false)
+//                CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+//                    ChildrenSyncScheduler.enqueueNow(appContext)
+//                }
+//                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
+//                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+//                    .build()
+//
+//                work.enqueueUniqueWork(
+//                    "children-push-once",
+//                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+//                    req
+//                )
+                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+
+                WorkManager.getInstance(appContext).enqueueUniqueWork(
+//                    "children-push-once",
+//                    ExistingWorkPolicy.REPLACE,
+                    "children_sync_queue",
+                    ExistingWorkPolicy.APPEND,
+                    req
+                )
+
+//                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
+//                    .setConstraints(
+//                        Constraints.Builder()
+//                            .setRequiredNetworkType(NetworkType.CONNECTED)
+//                            .build()
+//                    )
+//                    .build()
+//
+//                work.enqueueUniqueWork(
+//                    /* uniqueName = */ "children-push-once",
+//                    /* policy     = */ ExistingWorkPolicy.REPLACE, // don’t append into a stuck chain
+//                    /* request    = */ req
+//                )
                 _events.trySend(ChildFormEvent.Saved(id))
             }
             .onFailure {
@@ -327,6 +396,7 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             invitedByIndividualId = ui.invitedByIndividualId,
             invitedByTypeOther = ui.invitedByTypeOther,
             educationPreference = ui.educationPreference,
+            technicalSkills = ui.technicalSkills,
 
             // Background
             leftHomeDate = ui.leftHomeDate,
@@ -334,9 +404,12 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             leaveStreetDate = ui.leaveStreetDate,
 
             // Education
+            educationLevel = ui.educationLevel,
             lastClass = ui.lastClass,
             previousSchool = ui.previousSchool,
             reasonLeftSchool = ui.reasonLeftSchool,
+            formerSponsor = ui.formerSponsor,
+            formerSponsorOther = ui.formerSponsorOther,
 
             // Resettlement
             resettlementPreference = ui.resettlementPreference,
@@ -371,6 +444,8 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
 
             // Spiritual
             acceptedJesus = ui.acceptedJesus,
+            confessedBy = ui.confessedBy,
+            ministryName = ui.ministryName,
             acceptedJesusDate = ui.acceptedJesusDate,
             whoPrayed = ui.whoPrayed,
             whoPrayedOther = ui.whoPrayedOther,
@@ -380,14 +455,14 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             generalComments = ui.generalComments,
 
             // Sponsorship
-            sponsoredForEducation = ui.sponsoredForEducation,
-            sponsorId = ui.sponsorId,
-            sponsorFName = ui.sponsorFName,
-            sponsorLName = ui.sponsorLName,
-            sponsorTelephone1 = ui.sponsorTelephone1,
-            sponsorTelephone2 = ui.sponsorTelephone2,
-            sponsorEmail = ui.sponsorEmail,
-            sponsorNotes = ui.sponsorNotes,
+            partnershipForEducation = ui.sponsoredForEducation,
+            partnerId = ui.sponsorId,
+            partnerFName = ui.sponsorFName,
+            partnerLName = ui.sponsorLName,
+            partnerTelephone1 = ui.sponsorTelephone1,
+            partnerTelephone2 = ui.sponsorTelephone2,
+            partnerEmail = ui.sponsorEmail,
+            partnerNotes = ui.sponsorNotes,
 
             // Status & audit
             registrationStatus = status,
@@ -411,14 +486,18 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         invitedByIndividualId = c.invitedByIndividualId,
         invitedByTypeOther = c.invitedByTypeOther,
         educationPreference = c.educationPreference,
+        technicalSkills = c.technicalSkills,
 
         leftHomeDate = c.leftHomeDate,
         reasonLeftHome = c.reasonLeftHome,
         leaveStreetDate = c.leaveStreetDate,
 
+        educationLevel = c.educationLevel,
         lastClass = c.lastClass,
         previousSchool = c.previousSchool,
         reasonLeftSchool = c.reasonLeftSchool,
+        formerSponsor = c.formerSponsor,
+        formerSponsorOther =  c.formerSponsorOther,
 
         resettlementPreference = c.resettlementPreference,
         resettlementPreferenceOther = c.resettlementPreferenceOther,
@@ -450,6 +529,8 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         telephone3b = c.telephone3b,
 
         acceptedJesus = c.acceptedJesus,
+        confessedBy = c.confessedBy,
+        ministryName = c.ministryName,
         acceptedJesusDate = c.acceptedJesusDate,
         whoPrayed = c.whoPrayed,
         whoPrayedOther = c.whoPrayedOther,
@@ -458,14 +539,14 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         outcome = c.outcome,
         generalComments = c.generalComments,
 
-        sponsoredForEducation = c.sponsoredForEducation,
-        sponsorId = c.sponsorId,
-        sponsorFName = c.sponsorFName,
-        sponsorLName = c.sponsorLName,
-        sponsorTelephone1 = c.sponsorTelephone1,
-        sponsorTelephone2 = c.sponsorTelephone2,
-        sponsorEmail = c.sponsorEmail,
-        sponsorNotes = c.sponsorNotes,
+        sponsoredForEducation = c.partnershipForEducation,
+        sponsorId = c.partnerId,
+        sponsorFName = c.partnerFName,
+        sponsorLName = c.partnerLName,
+        sponsorTelephone1 = c.partnerTelephone1,
+        sponsorTelephone2 = c.partnerTelephone2,
+        sponsorEmail = c.partnerEmail,
+        sponsorNotes = c.partnerNotes,
 
         graduated = c.graduated,
         registrationStatus = c.registrationStatus,
@@ -508,6 +589,7 @@ data class ChildFormUiState(
     val invitedByTypeOther: String = "",
 
     val educationPreference: EducationPreference = EducationPreference.NONE,
+    val technicalSkills: String = "",
 
     // ===== Background =====
     val leftHomeDate: Timestamp? = null,
@@ -515,12 +597,15 @@ data class ChildFormUiState(
     val leaveStreetDate: Timestamp? = null,
 
     // ===== Education =====
+    val educationLevel: EducationLevel = EducationLevel.NONE,
     val lastClass: String = "",
     val previousSchool: String = "",
     val reasonLeftSchool: String = "",
+    val formerSponsor: Relationship = Relationship.NONE,
+    val formerSponsorOther: String = "",
 
     // ===== Resettlement =====
-    val resettlementPreference: ResettlementPreference = ResettlementPreference.Home,
+    val resettlementPreference: ResettlementPreference = ResettlementPreference.DIRECT_HOME,
     val resettlementPreferenceOther: String = "",
     val resettled: Boolean = false,
     val resettlementDate: Timestamp? = null,
@@ -552,6 +637,8 @@ data class ChildFormUiState(
 
     // ===== Spiritual =====
     val acceptedJesus: Reply = Reply.NO,
+    val confessedBy: ConfessedBy = ConfessedBy.NONE,
+    val ministryName: String = " ",
     val acceptedJesusDate: Timestamp? = null,
     val whoPrayed: Individual = Individual.UNCLE,
     val whoPrayedOther: String = "",

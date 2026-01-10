@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+#-keep class androidx.work.ListenableWorker { *; }
+#-keep class **_HiltWorkerFactory { *; }
+#-keep @dagger.assisted.AssistedInject class *
+#-keep class * extends androidx.work.ListenableWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }

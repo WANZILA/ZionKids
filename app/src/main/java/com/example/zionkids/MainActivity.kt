@@ -41,25 +41,32 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ZionKidsTheme(           // <- must wrap EVERYTHING
+            ZionKidsTheme(
                 darkTheme = isSystemInDarkTheme(),
-                dynamicColor = false   // keep false if you want your custom palette
+                dynamicColor = false
             )  {
-
-                //SetBarColor(color =  MaterialTheme.colorScheme.background)
-                /** increase the cache to 500mb of documents storage */
-                val cacheSettings = PersistentCacheSettings.newBuilder()
-                    .setSizeBytes(500L * 1024 * 1024) // 🔥 500MB
-
-                val settings = FirebaseFirestoreSettings.Builder()
-                    .setLocalCacheSettings(cacheSettings.build())
-                    .build()
-
-                Firebase.firestore.firestoreSettings = settings
                 SetBarsToPrimary()
                 ZionAppNavHost()
-              //  ChildBasicInfoScreen()
             }
+//            ZionKidsTheme(           // <- must wrap EVERYTHING
+//                darkTheme = isSystemInDarkTheme(),
+//                dynamicColor = false   // keep false if you want your custom palette
+//            )  {
+//
+//                //SetBarColor(color =  MaterialTheme.colorScheme.background)
+//                /** increase the cache to 500mb of documents storage */
+//                val cacheSettings = PersistentCacheSettings.newBuilder()
+//                    .setSizeBytes(500L * 1024 * 1024) // 🔥 500MB
+//
+//                val settings = FirebaseFirestoreSettings.Builder()
+//                    .setLocalCacheSettings(cacheSettings.build())
+//                    .build()
+//
+//                Firebase.firestore.firestoreSettings = settings
+//                SetBarsToPrimary()
+//                ZionAppNavHost()
+//              //  ChildBasicInfoScreen()
+//            }
         }
     }
 }

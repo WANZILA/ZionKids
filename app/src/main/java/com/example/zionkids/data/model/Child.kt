@@ -10,9 +10,26 @@ import com.google.firebase.Timestamp
 @Entity(
     tableName = "children",
     indices = [
-        Index(value = ["graduated"]),
-        Index(value = ["registrationStatus"]),
-        Index(value = ["updatedAt"])
+        Index("isDeleted"),
+        Index("graduated"),
+        Index("partnershipForEducation"),
+        Index("resettled"),
+        Index("registrationStatus"),
+        Index("educationPreference"),
+        Index("region"),
+        Index("street"),
+        Index("createdAt"),
+        Index("updatedAt"),
+        Index("isDirty"),
+//        Index(value = ["graduated"]),
+//        Index(value = ["registrationStatus"]),
+//        Index(value = ["updatedAt"]),
+//        // /// CHANGED: support delta queries & sync scans
+//        Index(value = ["isDirty"]),
+//        Index(value = ["isDeleted"]),
+//        Index(value = ["version"]),
+//        // /// CHANGED: common compound filter for remote delta + tombstones
+//        Index(value = ["isDeleted", "updatedAt"])
         // Add these back only if you include the columns:
         // Index(value = ["backgroundUpdatedAt"]),
         // Index(value = ["educationUpdatedAt"]),
@@ -50,12 +67,16 @@ data class Child(
     val leaveStreetDate: Timestamp? = null,
 
     // ===== Education Info =====
+    val educationLevel: EducationLevel = EducationLevel.NONE,
     val lastClass: String = "",
     val previousSchool: String = "",
     val reasonLeftSchool: String = "",
+    val formerSponsor: Relationship = Relationship.NONE,
+    val formerSponsorOther: String ="",
+    val technicalSkills: String = "",
 
     // ===== Family Resettlement =====
-    val resettlementPreference: ResettlementPreference = ResettlementPreference.Home,
+    val resettlementPreference: ResettlementPreference = ResettlementPreference.DIRECT_HOME,
     val resettlementPreferenceOther: String = "",
     val resettled: Boolean = false,
     val resettlementDate: Timestamp? = null,
@@ -90,6 +111,8 @@ data class Child(
 
     // ===== Spiritual Info =====
     val acceptedJesus: Reply = Reply.NO,
+    val confessedBy: ConfessedBy = ConfessedBy.NONE,
+    val ministryName: String = "",
     val acceptedJesusDate: Timestamp? = null,
     val whoPrayed: Individual = Individual.UNCLE,
     val whoPrayedOther: String = "",
@@ -100,21 +123,29 @@ data class Child(
 
     // ===== Program statuses =====
     val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
+//    when a child has completed a skilling or school and they are working
     val graduated: Reply = Reply.NO,
 
     // ===== Sponsorship/Family flags =====
-    val sponsoredForEducation: Boolean = false,
-    val sponsorId: String = "",
-    val sponsorFName: String = "",
-    val sponsorLName: String = "",
-    val sponsorTelephone1: String = "",
-    val sponsorTelephone2: String = "",
-    val sponsorEmail: String = "",
-    val sponsorNotes: String = "",
+    val partnershipForEducation: Boolean = false,
+    val partnerId: String = "",
+    val partnerFName: String = "",
+    val partnerLName: String = "",
+    val partnerTelephone1: String = "",
+    val partnerTelephone2: String = "",
+    val partnerEmail: String = "",
+    val partnerNotes: String = "",
 
     // ===== Audit =====
     val createdAt: Timestamp = Timestamp.now(),
-    val updatedAt: Timestamp = Timestamp.now()
+    val updatedAt: Timestamp = Timestamp.now(),
+
+    // Mark local edits for push; prefer batch pushes of dirty rows.
+    val isDirty: Boolean = false,
+    // Soft-deletes (tombstones) so Room remains source of truth and we can sync deletions.
+    val isDeleted: Boolean = false,
+    // Cheap conflict resolution: prefer higher version (server increments), else newer updatedAt.
+    val version: Long = 0L
 ) {
     fun fullName(): String =
         listOf(fName, oName, lName).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
@@ -140,7 +171,7 @@ data class Child(
 
 enum class Individual { UNCLE, AUNTY, CHILD, OTHER }
 enum class EducationPreference { SCHOOL, SKILLING, NONE }
-enum class ResettlementPreference { Home, Phaneroo, Other }
+enum class ResettlementPreference { DIRECT_HOME, TEMPORARY_HOME, OTHER }
 enum class Reply { YES, NO }
 enum class Relationship { NONE, PARENT, UNCLE, AUNTY, OTHER }
 
@@ -153,3 +184,7 @@ enum class ClassGroup {
 
 enum class Gender { MALE, FEMALE }
 enum class RegistrationStatus { BASICINFOR, BACKGROUND, EDUCATION, FAMILY,SPONSORSHIP, SPIRITUAL, COMPLETE }
+
+enum class  ConfessedBy{ NONE,PHANEROO, OTHER}
+
+enum class EducationLevel { NONE, NURSERY,PRIMARY, SECONDARY}

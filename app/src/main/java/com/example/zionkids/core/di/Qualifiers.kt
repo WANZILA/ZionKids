@@ -34,10 +34,18 @@ annotation class LockedAccountsRef
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AppUpdateRepositoryRef
-
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AppVersionCode
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TechnicalSkills
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class Streets
+
 
 
 

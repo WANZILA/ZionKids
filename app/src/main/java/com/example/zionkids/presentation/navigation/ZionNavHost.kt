@@ -15,7 +15,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.zionkids.data.model.Reply
-import com.example.zionkids.migration.MigrationToolkitScreen
+import com.example.zionkids.migration.MigrationJsonlAllInOneScreen
 import com.example.zionkids.presentation.screens.*
 import com.example.zionkids.presentation.screens.admin.AdminDashboardScreen
 import com.example.zionkids.presentation.screens.admin.UserDetailScreen
@@ -24,7 +24,10 @@ import com.example.zionkids.presentation.screens.admin.UserListScreen
 import com.example.zionkids.presentation.screens.attendance.*
 import com.example.zionkids.presentation.screens.children.*
 import com.example.zionkids.presentation.screens.events.*
+import com.example.zionkids.presentation.screens.reports.ReportScreen
 import com.example.zionkids.presentation.screens.splash.SplashScreen
+import com.example.zionkids.presentation.screens.streets.StreetsScreen
+import com.example.zionkids.presentation.screens.technicalSkills.TechnicalSkillsScreen
 import com.example.zionkids.presentation.screens.users.UsersDashboardScreen
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 
@@ -162,7 +165,7 @@ fun ZionAppNavHost(
                     // Admin-only: Migration (guard at call site as well)
                     composable(Screen.Migration.route) {
                         if (permsCanListUsers) {
-                            MigrationToolkitScreen(
+                            MigrationJsonlAllInOneScreen(
                                 navigateUp = {
                                     navController.navigate(Screen.AdminUsers.route){
                                         popUpTo(Screen.Migration.route){inclusive = true}
@@ -492,7 +495,13 @@ fun ZionAppNavHost(
                                     launchSingleTop = true
                                 }
                             },
-                            onSave = { navController.navigate(Screen.ChildForm.route) },
+                            onSave = { 
+                                navController.navigate(Screen.ChildForm.route) {
+                                    popUpTo(Screen.ChildForm.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                                
+                                },
                             toList = {
                                 navController.navigate(Screen.ChildrenList.route) {
                                     popUpTo(Screen.ChildForm.route) { inclusive = true }
@@ -517,19 +526,19 @@ fun ZionAppNavHost(
                             childIdArg = childId,
                             onEdit = { childIdArg ->
                                 navController.navigate(Screen.ChildForm.edit(childIdArg)) {
-                                    popUpTo(Screen.ChildrenList.route) { inclusive = true }
+                                    popUpTo(Screen.ChildDetails.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toChildrenDashboard = {
                                 navController.navigate(Screen.ChildrenDashboard.route) {
-                                    popUpTo(Screen.ChildrenList.route) { inclusive = true }
+                                    popUpTo(Screen.ChildDetails.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toChildrenList = {
                                 navController.navigate(Screen.ChildrenList.route) {
-                                    popUpTo(Screen.ChildrenList.route) { inclusive = true }
+                                    popUpTo(Screen.ChildDetails.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
@@ -710,6 +719,40 @@ fun ZionAppNavHost(
                                     launchSingleTop = true
                                 }
                             }
+                        )
+                    }
+
+
+                    /*****
+                     * Technical skills
+                     *
+                     *
+                     */
+
+                    composable(Screen.TechnicalSkillsDashboard.route) {
+                        TechnicalSkillsScreen(
+
+                        )
+                    }
+
+
+
+                    /*****
+                     * Streets
+                     *
+                     *
+                     */
+
+                    composable(Screen.StreetsDashboard.route) {
+                        StreetsScreen(
+
+                        )
+                    }
+
+
+                    composable(Screen.ReportsDashboard.route) {
+                        ReportScreen(
+
                         )
                     }
                 }

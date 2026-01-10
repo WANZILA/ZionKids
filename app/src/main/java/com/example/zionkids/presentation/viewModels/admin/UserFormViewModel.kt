@@ -19,7 +19,7 @@ import kotlin.String
 
 data class UserFormState(
     val email: String = "",
-    val password: String = "",
+//    val password: String = "",
     val displayName: String = "",
     val selectedAssignedRole: AssignedRole = AssignedRole.VOLUNTEER,   // ← single role
     val disabled: Boolean = false,
@@ -43,7 +43,7 @@ class UserFormViewModel @Inject constructor(
         private set
 
     fun updateEmail(v: String) { ui = ui.copy(email = v, success = false, error = null) }
-    fun updatePassword(v: String) { ui = ui.copy(password = v, success = false, error = null) }
+//    fun updatePassword(v: String) { ui = ui.copy(password = v, success = false, error = null) }
     fun updateDisplayName(v: String) { ui = ui.copy(displayName = v, success = false, error = null) }
     fun setRole(userRole: AssignedRole) { ui = ui.copy(selectedAssignedRole = userRole, success = false, error = null) } // ← single role
     fun setDisabled(v: Boolean) { ui = ui.copy(disabled = v) }
@@ -53,9 +53,9 @@ class UserFormViewModel @Inject constructor(
 
     private fun isValidCreate(): Boolean {
         val e = ui.email.trim()
-        val p = ui.password
+//        val p = ui.password
         val d = ui.displayName
-        return e.isNotBlank() && '@' in e && p.length >= 6 && d.isNotBlank()
+        return e.isNotBlank() && '@' in e  && d.isNotBlank()
     }
 
     /** Load an existing user for editing. */
@@ -115,7 +115,7 @@ class UserFormViewModel @Inject constructor(
                 val profile = usersRepo.registerUserAsAdmin(
                     adminAuth = adminAuth,
                     email = ui.email,
-                    password = ui.password,
+//                    password = ui.password,
                     displayName = ui.displayName.ifBlank { null },
                     userRole = ui.selectedAssignedRole,
                     disabled = ui.disabled

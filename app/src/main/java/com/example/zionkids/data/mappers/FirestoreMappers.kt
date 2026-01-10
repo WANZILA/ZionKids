@@ -61,10 +61,17 @@ private fun String?.toIndividual(): Individual =
 private fun String?.toEducationPref(): EducationPreference =
     runCatching { if (this == null) EducationPreference.NONE else EducationPreference.valueOf(this) }
         .getOrDefault(EducationPreference.NONE)
+private fun String?.toEducationLevel(): EducationLevel =
+    runCatching { if (this == null) EducationLevel.NONE else EducationLevel.valueOf(this) }
+        .getOrDefault(EducationLevel.NONE)
 
 private fun String?.toRelationship(): Relationship =
     runCatching { if (this == null) Relationship.NONE else Relationship.valueOf(this) }
         .getOrDefault(Relationship.NONE)
+
+private fun String?.toConfessedBy(): ConfessedBy =
+    runCatching { if (this == null) ConfessedBy.NONE else ConfessedBy.valueOf(this) }
+        .getOrDefault(ConfessedBy.NONE)
 
 private fun String?.toRegistrationStatus(): RegistrationStatus =
     runCatching { if (this == null) RegistrationStatus.BASICINFOR else RegistrationStatus.valueOf(this) }
@@ -93,7 +100,7 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         fName = str("fName") ?: "",
         lName = str("lName") ?: "",
         oName = str("oName") ?: "",
-        gender = (str("educationPreference")).toGender(),
+        gender = (str("gender")).toGender(),
 
         age = intPos("age") ?: 0,
 
@@ -107,6 +114,7 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         invitedByTypeOther = str("invitedByTypeOther") ?: "",
 
         educationPreference = (str("educationPreference")).toEducationPref(),
+        technicalSkills = str("technicalSkills") ?: "",
 
         // ===== Background Info =====
         leftHomeDate = ts("leftHomeDate"),
@@ -114,15 +122,18 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         leaveStreetDate = ts("leaveStreetDate") ?: ts("leftStreetDate"),
 
         // ===== Education Info =====
+        educationLevel = (str("educationLevel")).toEducationLevel(),
         lastClass = str("lastClass") ?: "",
         previousSchool = str("previousSchool") ?: "",
         reasonLeftSchool = str("reasonLeftSchool") ?: "",
+        formerSponsor  = (str("formerSponsor")).toRelationship(),
+        formerSponsorOther = str("formerSponsorOther") ?: "",
 
         // ===== Family Resettlement =====
         resettlementPreference = run {
             val v = str("resettlementPreference")
-            try { if (v != null) ResettlementPreference.valueOf(v) else ResettlementPreference.Home }
-            catch (_: IllegalArgumentException) { ResettlementPreference.Home }
+            try { if (v != null) ResettlementPreference.valueOf(v) else ResettlementPreference.DIRECT_HOME }
+            catch (_: IllegalArgumentException) { ResettlementPreference.DIRECT_HOME }
         },
         resettlementPreferenceOther = str("resettlementPreferenceOther") ?: "",
         resettled = getBoolean("resettled") ?: false,
@@ -158,6 +169,8 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
 
         // ===== Spiritual Info =====
         acceptedJesus = (str("acceptedJesus")).toReply(),
+        confessedBy  = (str("confessedBy")).toConfessedBy(),
+        ministryName = str("ministryName") ?: "",
         acceptedJesusDate = ts("acceptedJesusDate"),
         whoPrayed = (str("whoPrayed")).toIndividual(),
         whoPrayedOther = str("whoPrayedOther") ?: "",
@@ -171,14 +184,14 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         graduated = (str("graduated")).toReply(),
 
         // ===== Sponsorship / Flags =====
-        sponsoredForEducation = getBoolean("sponsoredForEducation") ?: false,
-        sponsorId = str("sponsorId") ?: "",
-        sponsorFName = str("sponsorFName") ?: "",
-        sponsorLName = str("sponsorLName") ?: "",
-        sponsorTelephone1 = str("sponsorTelephone1") ?: "",
-        sponsorTelephone2 = str("sponsorTelephone2") ?: "",
-        sponsorEmail = str("sponsorEmail") ?: "",
-        sponsorNotes = str("sponsorNotes") ?: "",
+        partnershipForEducation = getBoolean("sponsoredForEducation") ?: false,
+        partnerId = str("sponsorId") ?: "",
+        partnerFName = str("sponsorFName") ?: "",
+        partnerLName = str("sponsorLName") ?: "",
+        partnerTelephone1 = str("partnerTelephone1") ?: "",
+        partnerTelephone2 = str("partnerTelephone2") ?: "",
+        partnerEmail = str("sponsorEmail") ?: "",
+        partnerNotes = str("sponsorNotes") ?: "",
 
         // ===== Audit =====
         createdAt = ts("createdAt") ?: Timestamp.now(),
@@ -191,104 +204,140 @@ fun QuerySnapshot.toChildren(): List<Child> = documents.mapNotNull { it.toChildO
 
 /* ======================= CHILD -> FIRESTORE (FULL) ======================= */
 /** Full map for create/replace. Writes all fields; nullable fields are skipped. */
-fun Child.toFirestoreMapFull(): Map<String, Any> = buildMap {
-    // ===== IDs =====
-    put("childId", childId)
+//fun Child.toFirestoreMapFull(): Map<String, Any> = buildMap {
+//    // ===== IDs =====
+//    put("childId", childId)
+//
+//    // ===== Basic Info =====
+//    put("profileImg", profileImg)
+//
+//    put("fName", fName)
+//    put("lName", lName)
+//    put("oName", oName)
+//    put("gender", gender)
+//
+//    if (age > 0) put("age", age)
+//
+//    dob?.let { put("dob", it) }
+//    put("dobVerified", dobVerified)
+//
+//    put("street", street)
+//
+//    put("invitedBy", invitedBy.name)
+//    put("invitedByIndividualId", invitedByIndividualId)
+//    put("invitedByTypeOther", invitedByTypeOther)
+//
+//    put("educationPreference", educationPreference.name)
+//
+//    // ===== Background Info =====
+//    leftHomeDate?.let { put("leftHomeDate", it) }
+//    reasonLeftHome?.let { put("reasonLeftHome", it) }
+//    leaveStreetDate?.let { put("leaveStreetDate", it) }
+//
+//    // ===== Education Info =====
+//    put("lastClass", lastClass)
+//    put("previousSchool", previousSchool)
+//    put("reasonLeftSchool", reasonLeftSchool)
+//
+//    // ===== Family Resettlement =====
+//    put("resettlementPreference", resettlementPreference.name)
+//    put("resettlementPreferenceOther", resettlementPreferenceOther)
+//    put("resettled", resettled)
+//    resettlementDate?.let { put("resettlementDate", it) }
+//
+//    put("region", region)
+//    put("district", district)
+//    put("county", county)
+//    put("subCounty", subCounty)
+//    put("parish", parish)
+//    put("village", village)
+//
+//    // ===== Family Members 1 =====
+//    put("memberFName1", memberFName1)
+//    put("memberLName1", memberLName1)
+//    put("relationship1", relationship1.name)
+//    put("telephone1a", telephone1a)
+//    put("telephone1b", telephone1b)
+//
+//    // ===== Family Members 2 =====
+//    put("memberFName2", memberFName2)
+//    put("memberLName2", memberLName2)
+//    put("relationship2", relationship2.name)
+//    put("telephone2a", telephone2a)
+//    put("telephone2b", telephone2b)
+//
+//    // ===== Family Members 3 =====
+//    put("memberFName3", memberFName3)
+//    put("memberLName3", memberLName3)
+//    put("relationship3", relationship3.name)
+//    put("telephone3a", telephone3a)
+//    put("telephone3b", telephone3b)
+//
+//    // ===== Spiritual Info =====
+//    put("acceptedJesus", acceptedJesus.name)
+//    acceptedJesusDate?.let { put("acceptedJesusDate", it) }
+//    put("whoPrayed", whoPrayed.name)
+//    put("whoPrayedOther", whoPrayedOther)
+//    put("whoPrayedId", whoPrayedId)
+//    put("outcome", outcome)
+//    put("classGroup", classGroup.name)
+//    put("generalComments", generalComments)
+//
+//    // ===== Program statuses =====
+//    put("registrationStatus", registrationStatus.name)
+//    put("graduated", graduated.name)
+//
+//    // ===== Sponsorship / Flags =====
+//    put("sponsoredForEducation", sponsoredForEducation)
+//    put("sponsorId", sponsorId)
+//    put("sponsorFName", sponsorFName)
+//    put("sponsorLName", sponsorLName)
+//    put("partnerTelephone1", partnerTelephone1)
+//    put("partnerTelephone2", partnerTelephone2)
+//    put("sponsorEmail", sponsorEmail)
+//    put("sponsorNotes", sponsorNotes)
+//
+//    // ===== Audit =====
+//    put("createdAt", createdAt)
+//    put("updatedAt", updatedAt)
+//}
+/** Build a PATCH map (only non-null / non-blank fields) for merge updates. */
+fun Event.toFirestoreMapPatch(): Map<String, Any> = buildMap {
+    fun putIfNotBlank(key: String, v: String?) {
+        if (!v.isNullOrBlank()) put(key, v)
+    }
+
+    fun putIfNotNull(key: String, v: Any?) {
+        if (v != null) put(key, v)
+    }
 
     // ===== Basic Info =====
-    put("profileImg", profileImg)
+    putIfNotBlank("eventId", eventId)
+    putIfNotBlank("title", title)
+    putIfNotBlank("eventId", eventId)
+    putIfNotBlank("title", title)
+    put("eventDate", eventDate)
 
-    put("fName", fName)
-    put("lName", lName)
-    put("oName", oName)
-    put("gender", gender)
+    // Team / contact
+    putIfNotBlank("teamName", teamName)
+    putIfNotBlank("teamLeaderNames", teamLeaderNames)
+    putIfNotBlank("leaderTelephone1", leaderTelephone1)
+    putIfNotBlank("leaderTelephone2", leaderTelephone2)
+    putIfNotBlank("leaderEmail", leaderEmail)
 
-    if (age > 0) put("age", age)
+    // Logistics
+    putIfNotBlank("location", location)
+    put("eventStatus", eventStatus.name)
+    putIfNotBlank("notes", notes)
 
-    dob?.let { put("dob", it) }
-    put("dobVerified", dobVerified)
+    // Admin / sync flags
+    putIfNotBlank("adminId", adminId)
+    put("isDeleted", isDeleted)
+    put("version", version)
 
-    put("street", street)
-
-    put("invitedBy", invitedBy.name)
-    put("invitedByIndividualId", invitedByIndividualId)
-    put("invitedByTypeOther", invitedByTypeOther)
-
-    put("educationPreference", educationPreference.name)
-
-    // ===== Background Info =====
-    leftHomeDate?.let { put("leftHomeDate", it) }
-    reasonLeftHome?.let { put("reasonLeftHome", it) }
-    leaveStreetDate?.let { put("leaveStreetDate", it) }
-
-    // ===== Education Info =====
-    put("lastClass", lastClass)
-    put("previousSchool", previousSchool)
-    put("reasonLeftSchool", reasonLeftSchool)
-
-    // ===== Family Resettlement =====
-    put("resettlementPreference", resettlementPreference.name)
-    put("resettlementPreferenceOther", resettlementPreferenceOther)
-    put("resettled", resettled)
-    resettlementDate?.let { put("resettlementDate", it) }
-
-    put("region", region)
-    put("district", district)
-    put("county", county)
-    put("subCounty", subCounty)
-    put("parish", parish)
-    put("village", village)
-
-    // ===== Family Members 1 =====
-    put("memberFName1", memberFName1)
-    put("memberLName1", memberLName1)
-    put("relationship1", relationship1.name)
-    put("telephone1a", telephone1a)
-    put("telephone1b", telephone1b)
-
-    // ===== Family Members 2 =====
-    put("memberFName2", memberFName2)
-    put("memberLName2", memberLName2)
-    put("relationship2", relationship2.name)
-    put("telephone2a", telephone2a)
-    put("telephone2b", telephone2b)
-
-    // ===== Family Members 3 =====
-    put("memberFName3", memberFName3)
-    put("memberLName3", memberLName3)
-    put("relationship3", relationship3.name)
-    put("telephone3a", telephone3a)
-    put("telephone3b", telephone3b)
-
-    // ===== Spiritual Info =====
-    put("acceptedJesus", acceptedJesus.name)
-    acceptedJesusDate?.let { put("acceptedJesusDate", it) }
-    put("whoPrayed", whoPrayed.name)
-    put("whoPrayedOther", whoPrayedOther)
-    put("whoPrayedId", whoPrayedId)
-    put("outcome", outcome)
-    put("classGroup", classGroup.name)
-    put("generalComments", generalComments)
-
-    // ===== Program statuses =====
-    put("registrationStatus", registrationStatus.name)
-    put("graduated", graduated.name)
-
-    // ===== Sponsorship / Flags =====
-    put("sponsoredForEducation", sponsoredForEducation)
-    put("sponsorId", sponsorId)
-    put("sponsorFName", sponsorFName)
-    put("sponsorLName", sponsorLName)
-    put("sponsorTelephone1", sponsorTelephone1)
-    put("sponsorTelephone2", sponsorTelephone2)
-    put("sponsorEmail", sponsorEmail)
-    put("sponsorNotes", sponsorNotes)
-
-    // ===== Audit =====
-    put("createdAt", createdAt)
-    put("updatedAt", updatedAt)
+    // Timestamps
+    put("updatedAt", Timestamp.now())
 }
-
 
 /** Build a PATCH map (only non-null / non-blank fields) for merge updates. */
 fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
@@ -314,16 +363,22 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     putIfNotBlank("invitedByTypeOther", invitedByTypeOther)
 
     put("educationPreference", educationPreference.name)
+    putIfNotBlank("technicalSkills", technicalSkills)
+
 
     // ===== Background =====
+
     putIfNotNull("leftHomeDate", leftHomeDate)
     putIfNotBlank("reasonLeftHome", reasonLeftHome)
     putIfNotNull("leaveStreetDate", leaveStreetDate)
 
     // ===== Education =====
+    put("educationLevel",educationLevel.name)
     putIfNotBlank("lastClass", lastClass)
     putIfNotBlank("previousSchool", previousSchool)
     putIfNotBlank("reasonLeftSchool", reasonLeftSchool)
+    put("formerSponsor",formerSponsor.name)
+    putIfNotBlank("formerSponsorOther", formerSponsorOther)
 
     // ===== Family Resettlement =====
     put("resettlementPreference", resettlementPreference.name)
@@ -362,6 +417,8 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     // ===== Spiritual =====
     put("acceptedJesus", acceptedJesus.name)
     putIfNotNull("acceptedJesusDate", acceptedJesusDate)
+    put("confessedBy", confessedBy.name)
+    putIfNotBlank("ministryName", ministryName)
     put("whoPrayed", whoPrayed.name)
     putIfNotBlank("whoPrayedOther", whoPrayedOther)
     putIfNotBlank("whoPrayedId", whoPrayedId)
@@ -373,14 +430,14 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     put("graduated", graduated.name)
 
     // ===== Sponsorship =====
-    put("sponsoredForEducation", sponsoredForEducation)
-    putIfNotBlank("sponsorId", sponsorId)
-    putIfNotBlank("sponsorFName", sponsorFName)
-    putIfNotBlank("sponsorLName", sponsorLName)
-    putIfNotBlank("sponsorTelephone1", sponsorTelephone1)
-    putIfNotBlank("sponsorTelephone2", sponsorTelephone2)
-    putIfNotBlank("sponsorEmail", sponsorEmail)
-    putIfNotBlank("sponsorNotes", sponsorNotes)
+    put("sponsoredForEducation", partnershipForEducation)
+    putIfNotBlank("sponsorId", partnerId)
+    putIfNotBlank("sponsorFName", partnerFName)
+    putIfNotBlank("sponsorLName", partnerLName)
+    putIfNotBlank("partnerTelephone1", partnerTelephone1)
+    putIfNotBlank("partnerTelephone2", partnerTelephone2)
+    putIfNotBlank("sponsorEmail", partnerEmail)
+    putIfNotBlank("sponsorNotes", partnerNotes)
 
     // ===== Audit =====
     put("createdAt", createdAt)
@@ -447,6 +504,26 @@ fun DocumentSnapshot.toUserOrNull(): UserProfile? {
 fun QuerySnapshot.toUsers(): List<UserProfile> =
     documents.mapNotNull { it.toUserOrNull() }
 
+
+
+/* ======================Attendance ================= */
+
+fun Attendance.toFirestoreMapPatch(): Map<String, Any?> = buildMap {
+    put("attendanceId", attendanceId)
+    put("childId", childId)
+    put("eventId", eventId)
+    put("adminId", adminId)
+    put("status", status.name)
+//    put("notes", notes.takeIf { it.isNotBlank() })
+    put("notes", notes.orEmpty())
+    // do NOT include isDirty in remote writes
+    put("isDeleted", isDeleted.takeIf { it })     // only write true; omit when false
+    put("version", version)
+    // createdAt handled conditionally in worker (only on first publish)
+    put("updatedAt", updatedAt)                   // worker will override with server-side 'now'
+    put("checkedAt", checkedAt)
+}
+
 /* ======================= ROLE PARSING ======================= */
 
 //private fun Any?.toRoleList(): List<AssignedRole> = when (this) {
@@ -471,7 +548,7 @@ fun QuerySnapshot.toUsers(): List<UserProfile> =
 private fun String.toRoleOrNull(): AssignedRole? = runCatching {
     // Normalize common variants; keep your current enum spelling "LEAD"
     when (val norm = trim().uppercase()) {
-        "VIEWER" -> AssignedRole.VOLUNTEER   // alias if some data writes "LEADER"
+        "VOLUNTEER" -> AssignedRole.VOLUNTEER   // alias if some data writes "LEADER"
         else -> AssignedRole.valueOf(norm)
     }
 }.getOrNull()

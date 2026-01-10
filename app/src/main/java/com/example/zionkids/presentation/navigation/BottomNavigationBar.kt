@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AddTask
+import androidx.compose.material.icons.filled.DoDisturbOff
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Outbox
+import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PeopleAlt
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.MoreVert
@@ -58,11 +61,16 @@ fun BottomNavigationBar(
 
     // ❌ no remember — build each recomposition so it can’t stick
     val overflow = buildList {
-        add(Screen.AttendanceDashboard)
+
         if (canListUsers) {
-            add(Screen.AdminUsers)
             add(Screen.Migration)
+            add(Screen.AdminUsers)
+            add(Screen.ReportsDashboard)
+            add(Screen.TechnicalSkillsDashboard)
+            add(Screen.StreetsDashboard)
+
         }
+        add(Screen.AttendanceDashboard)
     }
 
     fun isSelected(route: String) =
@@ -99,11 +107,10 @@ fun BottomNavigationBar(
                     ) {
                         Icon(
                             imageVector = when (screen) {
-                                is Screen.Migration -> Icons.Filled.Outbox
                                 is Screen.AdminDashboard -> Icons.Filled.Home
                                 is Screen.ChildrenDashboard -> Icons.Filled.Person
                                 is Screen.EventsDashboard -> Icons.Filled.AddTask
-                                else -> Icons.Filled.PeopleAlt
+                                else -> Icons.Filled.AccountBalance
                             },
                             modifier = Modifier.size(24.dp),
                             contentDescription = screen.route,
@@ -166,9 +173,13 @@ fun BottomNavigationBar(
                             leadingIcon = {
                                 Icon(
                                     imageVector = when (screen) {
+                                        is Screen.Migration -> Icons.Filled.Outbox
+                                        is Screen.AdminUsers -> Icons.Filled.Person
+                                        is Screen.ReportsDashboard -> Icons.Filled.Home
+                                        is Screen.StreetsDashboard -> Icons.Filled.AccountBalance
+                                        is Screen.TechnicalSkillsDashboard -> Icons.Filled.PanTool
                                         is Screen.AttendanceDashboard -> Icons.Filled.PeopleAlt
-                                        is Screen.AdminUsers -> Icons.Filled.PeopleAlt
-                                        else -> Icons.Filled.PeopleAlt
+                                        else -> Icons.Filled.DoDisturbOff
                                     },
                                     contentDescription = null
                                 )

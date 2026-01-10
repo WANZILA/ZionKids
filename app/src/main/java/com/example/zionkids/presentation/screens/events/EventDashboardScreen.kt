@@ -66,7 +66,7 @@ fun EventDashboardScreen(
         ) {
             item {
                 DashboardHeader(
-                    totalThisMonth = ui.totalThisMonth,
+                    totalThisMonth = ui.totalThisMonth,  //num of events in this month
                     nextEvent = ui.nextEvent,
                     activeNowCount = ui.activeNowCount,
                     statusFilter = ui.statusFilter,

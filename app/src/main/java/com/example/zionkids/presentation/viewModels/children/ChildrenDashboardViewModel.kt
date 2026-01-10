@@ -2,106 +2,98 @@ package com.example.zionkids.presentation.viewModels.children
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.data.model.RegistrationStatus
 import com.example.zionkids.data.model.Reply
-import com.example.zionkids.domain.repositories.online.ChildrenRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import java.util.Calendar
 import java.util.Locale
 import javax.inject.Inject
 
+data class SyncHealth(
+    val localCount: Int = 0,
+    val dirtyCount: Int = 0
+)
+
 data class ChildrenSummaryUi(
-    val loading: Boolean = true,
+    val loading: Boolean = false,
     val error: String? = null,
     val total: Int = 0,
     val newThisMonth: Int = 0,
     val graduated: Int = 0,
     val sponsored: Int = 0,
     val reunited: Int = 0,
-    val inProgram: Int = 0,          // registration incomplete
+    val inProgram: Int = 0,
     val avgAge: Double = 0.0,
     val eduDist: Map<EducationPreference, Int> = emptyMap(),
     val regionTop: List<Pair<String, Int>> = emptyList(),
     val streetTop: List<Pair<String, Int>> = emptyList(),
-    val staleUpdates: Int = 0        // updatedAt older than 30 days
+    val staleUpdates: Int = 0
 )
 
 @HiltViewModel
 class ChildrenDashboardViewModel @Inject constructor(
-    private val repo: ChildrenRepository
+    private val childDao: ChildDao
 ) : ViewModel() {
 
-    private val _ui = MutableStateFlow(ChildrenSummaryUi())
-    val ui: StateFlow<ChildrenSummaryUi> = _ui.asStateFlow()
+    // Health banner: only totals + dirty count
+    val health: StateFlow<SyncHealth> = combine(
+        childDao.observeAllActive().map { it.size },
+        childDao.observeDirtyCount()
+    ) { total, dirty ->
+        SyncHealth(localCount = total, dirtyCount = dirty)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SyncHealth())
 
-    init {
-        viewModelScope.launch {
-            repo.streamChildren()
-                .onStart { _ui.update { it.copy(loading = true, error = null) } }
-                .catch { e -> _ui.update { it.copy(loading = false, error = e.message ?: "Failed to load") } }
-                .collect { list -> _ui.update { compute(list) } }
-        }
-    }
+    // Main UI: single upstream stream -> compute everything here
+    val ui: StateFlow<ChildrenSummaryUi> = childDao
+        .observeAllActive()
+        .map { list -> compute(list) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ChildrenSummaryUi(loading = false))
 
-    // ---- Timestamp helpers ----
-    private fun Timestamp?.millisOrZero(): Long = this?.toDate()?.time ?: 0L
+    // -------- helpers --------
 
     private fun compute(all: List<Child>): ChildrenSummaryUi {
-        val nowMillis = System.currentTimeMillis()
-        val (startMonth, endMonth) = monthBounds(nowMillis)
+        val nowMs = System.currentTimeMillis()
+        val (monthStart, monthEnd) = monthBounds(nowMs)
+        val staleCutoff = nowMs - THIRTY_DAYS
 
         val total = all.size
+
         val newThisMonth = all.count { c ->
-            val created = c.createdAt.millisOrZero()
-            created in startMonth..endMonth
+            val created = c.createdAt.toMillis()
+            created in monthStart..monthEnd
         }
+
         val graduated = all.count { it.graduated == Reply.YES }
-        val sponsored = all.count { it.sponsoredForEducation }
-        val reunited = all.count { it.resettled }
+        val sponsored = all.count { it.partnershipForEducation }
+        val reunited  = all.count { it.resettled }
         val inProgram = all.count { it.registrationStatus != RegistrationStatus.COMPLETE }
 
-        val staleLimit = nowMillis - THIRTY_DAYS
-        val staleUpdates = all.count { c -> c.updatedAt.millisOrZero() < staleLimit }
+        val staleUpdates = all.count { c -> c.updatedAt.toMillis() < staleCutoff }
 
         val ages = all.mapNotNull { a -> a.age.takeIf { it > 0 } }
         val avgAge = if (ages.isNotEmpty()) ages.average() else 0.0
 
-        val eduDist = all.groupingBy { it.educationPreference }.eachCount()
-//        val regionTop = all
-//            .groupingBy { it.region ?: "Unknown" }
-//            .eachCount()
-//            .entries
-//            .sortedByDescending { it.value }
-//            .take(3)
-//            .map { it.key to it.value }
-//        val streetTop = all
-//            .groupingBy { it.street ?: "Unknown" }
-//            .eachCount()
-//            .entries
-//            .sortedByDescending { it.value }
-//            .take(3)
-//            .map { it.key to it.value }
-        // Regions: prefer child.region; skip blanks; normalize casing/whitespace
-        val regionsNorm = all.mapNotNull { child ->
-            child.region.normalizeOrNull()
-        }
-        val regionTop = topN(regionsNorm, 3)
+        val eduDist: Map<EducationPreference, Int> =
+            all.groupingBy { it.educationPreference }.eachCount()
 
-// Streets: prefer child.street, then child.address?.street; skip blanks; normalize
-        val streetsNorm = all.mapNotNull { child ->
-            (child.street ?: child?.street).normalizeOrNull()
-        }
-        val streetTop = topN(streetsNorm, 3)
+        val regionTop = topN(
+            all.mapNotNull { it.region.normalizeOrNull() },
+            n = 3
+        )
+
+        val streetTop = topN(
+            all.mapNotNull { it.street.normalizeOrNull() },
+            n = 3
+        )
 
         return ChildrenSummaryUi(
             loading = false,
@@ -120,8 +112,8 @@ class ChildrenDashboardViewModel @Inject constructor(
         )
     }
 
-    private fun monthBounds(time: Long): Pair<Long, Long> {
-        val c = Calendar.getInstance().apply { timeInMillis = time }
+    private fun monthBounds(nowMs: Long): Pair<Long, Long> {
+        val c = Calendar.getInstance().apply { timeInMillis = nowMs }
         c.set(Calendar.DAY_OF_MONTH, 1)
         c.set(Calendar.HOUR_OF_DAY, 0)
         c.set(Calendar.MINUTE, 0)
@@ -130,33 +122,31 @@ class ChildrenDashboardViewModel @Inject constructor(
         val start = c.timeInMillis
         c.add(Calendar.MONTH, 1)
         c.add(Calendar.MILLISECOND, -1)
-        val end = c.timeInMillis
-        return start to end
+        return start to c.timeInMillis
     }
 
-    // --- helpers (put inside the ViewModel) ---
+    private fun Timestamp?.toMillis(): Long = this?.toDate()?.time ?: 0L
+
     private fun String?.normalizeOrNull(): String? {
-        if (this == null) return null
-        val t = this.trim().replace(Regex("\\s+"), " ")
+        val t = this?.trim()?.replace(Regex("\\s+"), " ") ?: return null
         if (t.isEmpty()) return null
-        // Title-case (Makindye, Kisenyi, etc.)
         return t.lowercase(Locale.getDefault())
             .split(' ')
-            .joinToString(" ") { w -> w.replaceFirstChar { c -> c.titlecase(Locale.getDefault()) } }
+            .joinToString(" ") { w -> w.replaceFirstChar { ch -> ch.titlecase(Locale.getDefault()) } }
     }
 
-    private fun topN(names: List<String>, n: Int = 3): List<Pair<String, Int>> =
+    private fun topN(names: List<String>, n: Int): List<Pair<String, Int>> =
         names.groupingBy { it }
             .eachCount()
             .toList()
             .sortedWith(
-                compareByDescending<Pair<String, Int>> { it.second } // count desc
-                    .thenBy { it.first }                             // name asc (tie-break)
+                compareByDescending<Pair<String, Int>> { it.second }
+                    .thenBy { it.first }
             )
             .take(n)
 
-
     companion object {
-        private const val THIRTY_DAYS: Long = 30L * 24 * 60 * 60 * 1000
+        private const val THIRTY_DAYS: Long = 30L * 24 * 60 * 60 * 1000L
     }
 }
+

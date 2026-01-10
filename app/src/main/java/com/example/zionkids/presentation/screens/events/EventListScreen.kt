@@ -1,17 +1,30 @@
+// <app/src/main/java/com/example/zionkids/presentation/screens/events/EventListScreen.kt>
+// /// CHANGED: Render Paging 3 LazyPagingItems with load-state handling.
+// /// CHANGED: Preserve chips (offline/sync) from ViewModel snapshot state.
+// /// CHANGED: Kept your search box (filters snapshot list; paging shows full active list).
+
 package com.example.zionkids.presentation.screens.events
 
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleLeft
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.*
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -28,8 +41,12 @@ import com.example.zionkids.presentation.viewModels.events.EventListViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale
+// /// CHANGED: Paging compose imports
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import androidx.paging.LoadState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun EventListScreen(
     toEventForm: () -> Unit,
@@ -43,7 +60,9 @@ fun EventListScreen(
 
     val authUI by authVM.ui.collectAsStateWithLifecycle()
     val canAdd = authUI.perms.canCreateEvent
-//    val canAdd = authVM.ui.perms.canCreateEvent
+
+    // /// CHANGED: Collect paging items
+    val pagingItems = vm.pagedEvents.collectAsLazyPagingItems()
 
     LaunchedEffect(ui.error) {
         ui.error?.let { Log.d("EventListScreen", "Error: $it") }
@@ -56,7 +75,14 @@ fun EventListScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = stringResource(R.string.events))
                         Spacer(Modifier.width(8.dp))
-                        // If you want offline/sync chips, add them back here.
+//                        if (ui.isOffline) {
+//                            Spacer(Modifier.width(6.dp))
+//                            SuggestionChip(onClick = {}, enabled = false, label = { Text("offline") })
+//                        }
+//                        if (ui.isSyncing) {
+//                            Spacer(Modifier.width(6.dp))
+//                            SuggestionChip(onClick = {}, enabled = false, label = { Text("syncing…") })
+//                        }
                     }
                 },
                 actions = {
@@ -86,7 +112,7 @@ fun EventListScreen(
                 value = search,
                 onValueChange = {
                     search = it
-                    vm.onSearchQueryChange(it)
+                    vm.onSearchQueryChange(it) // still powers snapshot filter for chips/instant list
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -101,34 +127,59 @@ fun EventListScreen(
                 )
             )
 
+            // /// CHANGED: Paging-driven content
             Box(Modifier.fillMaxSize()) {
-                when {
-                    ui.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    ui.error != null -> Text(
-                        "Failed to load: ${ui.error}",
+                when (val state = pagingItems.loadState.refresh) {
+                    is LoadState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    is LoadState.Error -> Text(
+                        "Failed to load: ${state.error.message ?: "unknown"}",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                    ui.event.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
-                    else -> EventList(items = ui.event, onEventClick = onEventClick)
+                    is LoadState.NotLoading -> {
+                        if (pagingItems.itemCount == 0) {
+                            Text("No events yet", modifier = Modifier.align(Alignment.Center))
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(
+                                    count = pagingItems.itemCount,
+                                    key = pagingItems.itemKey { it.eventId }
+                                ) { index ->
+                                    val event = pagingItems[index]
+                                    if (event != null) {
+                                        EventRow(event = event) { onEventClick(event.eventId) }
+                                    }
+                                }
+                                // /// CHANGED: Append load state footer
+                                item {
+                                    when (val ap = pagingItems.loadState.append) {
+                                        is LoadState.Loading -> {
+                                            Row(
+                                                Modifier.fillMaxWidth().padding(16.dp),
+                                                horizontalArrangement = Arrangement.Center
+                                            ) { CircularProgressIndicator() }
+                                        }
+                                        is LoadState.Error -> {
+                                            Text(
+                                                "More failed: ${ap.error.message ?: "unknown"}",
+                                                color = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp)
+                                            )
+                                        }
+                                        else -> Unit
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun EventList(
-    items: List<Event>,
-    onEventClick: (String) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(items, key = { it.eventId }) { event ->
-            EventRow(event = event, onClick = { onEventClick(event.eventId) })
         }
     }
 }
@@ -152,18 +203,16 @@ private fun EventRow(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Date: ${event.eventDate .asHuman()}",
+                text = "Date: ${event.eventDate.asHuman()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
-            // You can show more fields here as needed, e.g.:
-            // Text("When: ${event.eventDate.asHuman()}")
         }
     }
 }
 
 /* ---------- Timestamp formatting (timestamps all through) ---------- */
 
-private val humanFmt = SimpleDateFormat("dd MMM yyyy ", Locale.getDefault())
+private val humanFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
 private fun Timestamp.asHuman(): String = humanFmt.format(this.toDate())

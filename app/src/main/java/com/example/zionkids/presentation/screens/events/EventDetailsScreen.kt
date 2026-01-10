@@ -84,7 +84,7 @@ fun EventDetailsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(ui.event?.title?.ifBlank { "Event details" } ?: "Event details") },
+                title = { Text(ui.event?.title?.ifBlank { "Event details" } ?: "Event details", style = MaterialTheme.typography.titleSmall) },
                 navigationIcon = {
                     IconButton(onClick = navigateUp) {
                         Icon(Icons.Filled.ArrowCircleLeft, contentDescription = "Back")

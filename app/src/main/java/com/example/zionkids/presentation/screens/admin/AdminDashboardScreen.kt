@@ -1,5 +1,7 @@
 package com.example.zionkids.presentation.screens.admin
 
+import android.content.pm.ApplicationInfo
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -7,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -18,9 +21,12 @@ import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 //import com.example.zionkids.presentation.screens.children.StatCard
 import com.example.zionkids.presentation.viewModels.AdminDashboardViewModel
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
+import com.google.firebase.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
 import com.google.firebase.Timestamp
+import com.google.firebase.crashlytics.BuildConfig
+import com.google.firebase.crashlytics.crashlytics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +38,7 @@ fun AdminDashboardScreen(
     toResettled: () -> Unit,
     toBeResettled: () -> Unit,
     vm: AdminDashboardViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+//    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsState()
 
@@ -81,7 +87,7 @@ fun AdminDashboardScreen(
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("Graduated", ui.childrenGraduated.toString(), Modifier.weight(1f))
-                        StatCard("Sponsored", ui.sponsored.toString(), Modifier.weight(1f))
+//                        StatCard("Sponsored", ui.sponsored.toString(), Modifier.weight(1f))
                     }
                 }
                 item {
@@ -109,7 +115,9 @@ fun AdminDashboardScreen(
 //                        StatCard("Active Now", ui.eventsActiveNow.toString(), Modifier.weight(1f))
 //                    }
 //                }
-
+//item{
+//    CrashlyticsTestScreen()
+//}
 
                 // Happening Today
                 item {
@@ -131,28 +139,6 @@ fun AdminDashboardScreen(
 }
 
 /* ---------- Reusable bits ---------- */
-
-@Composable
-private fun QuickActionButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    ElevatedCard(
-        modifier = modifier,
-        onClick = onClick
-    ) {
-        Row(
-            Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(text, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
 
 @Composable
 private fun StatCard(
@@ -187,22 +173,6 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
         }
     }
 }
-
-//@Composable
-//private fun DistributionRow(label: String, count: Int, total: Int) {
-//    Column {
-//        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-//            Text(label, style = MaterialTheme.typography.bodyMedium)
-//            Text(count.toString(), style = MaterialTheme.typography.bodyMedium)
-//        }
-//        LinearProgressIndicator(
-//            progress = (count / total.toFloat()).coerceIn(0f, 1f),
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .height(6.dp)
-//        )
-//    }
-//}
 
 @Composable
 private fun EventRowSmall(event: Event, onOpen: () -> Unit) {
@@ -251,4 +221,40 @@ private fun Timestamp.asTimeAndDate(): String {
 private fun Long.asTimeAndDate(): String {
     val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
     return sdf.format(Date(this))
+}
+
+
+@Composable
+fun CrashlyticsTestScreen() {
+    val ctx = LocalContext.current
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Crashlytics Diagnostics", style = MaterialTheme.typography.titleLarge)
+
+        Button(onClick = {
+            Firebase.crashlytics.setCustomKey("screen", "CrashlyticsTestScreen")
+//            Firebase.crashlytics.setCustomKey("build_type", BuildConfig.BUILD_TYPE)
+            Firebase.crashlytics.log("About to throw a test RuntimeException")
+                        // Derive build type without BuildConfig
+                        val appInfo = ctx.applicationContext.applicationInfo
+                        val isDebug = (appInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                        val buildType = if (isDebug) "debug" else "release"
+                        Firebase.crashlytics.setCustomKey("build_type", buildType)
+            // FATAL (app will crash)
+            throw RuntimeException("🔥 Test crash from CrashlyticsTestScreen")
+        }) { Text("Force FATAL crash") }
+
+        Button(onClick = {
+            val e = IllegalStateException("🤕 Test NON-FATAL exception")
+            Firebase.crashlytics.recordException(e)
+            Toast.makeText(ctx, "Recorded non-fatal", Toast.LENGTH_SHORT).show()
+        }) { Text("Record NON-FATAL") }
+
+        Button(onClick = {
+            Firebase.crashlytics.log("Breadcrumb: tapped breadcrumb button")
+            Toast.makeText(ctx, "Breadcrumb logged", Toast.LENGTH_SHORT).show()
+        }) { Text("Log breadcrumb") }
+    }
 }

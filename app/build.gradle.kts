@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.dagger.hilt)
     id("com.google.devtools.ksp")
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.google.firebase.crashlytics)
+//    kotlin("kapt")
 }
 
 android {
@@ -43,8 +45,11 @@ android {
     }
 }
 
+
+
 dependencies {
-implementation(libs.firebase.storage)
+    implementation(libs.firebase.storage)
+    implementation(libs.firebase.crashlytics)
     //    implementation("coreLibraryDesugaring com.android.tools:desugar_jdk_libs:2.1.2")
     //no need for adding  @RequiresApi(Build.VERSION_CODES.O)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
@@ -79,7 +84,7 @@ implementation(libs.firebase.storage)
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
-    annotationProcessor(libs.androidx.room.compiler)
+//    annotationProcessor(libs.androidx.room.compiler)
 
     implementation(libs.squareup.retrofit)
     implementation(libs.squareup.retrofit.gson)
@@ -105,5 +110,44 @@ implementation(libs.firebase.storage)
 
     //croping images
     implementation("com.github.CanHub:Android-Image-Cropper:4.0.0")
+
+    /// ADDED (Room KTX for coroutines/transactions)
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    /// ADDED (Room Paging bridge)
+    implementation("androidx.room:room-paging:2.6.1")
+
+    /// ADDED (Paging 3 runtime for DB→UI)
+    implementation("androidx.paging:paging-runtime-ktx:3.3.2")
+
+    /// ADDED (Paging 3 Compose adapter; placeholders off will be set in code)
+    implementation("androidx.paging:paging-compose:3.3.2")
+
+    /// ADDED (WorkManager for DeltaIn/DeltaOut workers)
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    /// ADDED (Hilt integration for WorkManager; compiler via KSP)
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
+
+    /// ADDED (Coroutines — explicit to pin versions and avoid transitive drift)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    /// ADDED (Optional structured logging hooks for metrics: TTFI, queue length, retries)
+    implementation("com.jakewharton.timber:timber:5.0.1")
+
+//    implementation("androidx.hilt:hilt-work:1.2.0")        // ← required for Hilt+WorkManager
+//    kapt("androidx.hilt:hilt-compiler:1.2.0" )
+// ← THIS is often miss
+//    ksp("androidx.hilt:hilt-compiler:1.2.0")
+//    kapt ("androidx.hilt:hilt-compiler:1.2.0")
+    // (Optional) test variants:
+//    kaptAndroidTest(libs.hilt.android.compiler) // instead of kspAndroidTest(...)
+
+    // --- Tests (if you use Hilt in androidTest) ---
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.android.compiler)    // Google Hilt (tests)
+    kspAndroidTest("androidx.hilt:hilt-compiler:1.2.0") // AndroidX Hilt (tests) if needed
 
 }

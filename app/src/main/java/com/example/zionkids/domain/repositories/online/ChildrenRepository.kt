@@ -20,7 +20,28 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import android.content.Context
 import javax.inject.Singleton
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.PagingSource
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+//import com.example.zionkids.core.di.ChildrenDeltaInEnqueuer
+//import com.example.zionkids.data.local.projection.ChildRow
+import com.example.zionkids.data.mappers.toChildOrNull
+//import com.example.zionkids.data.mappers.toEntity
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+//import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
+import java.util.Date
 
 data class ChildrenSnapshot(
     val children: List<Child>,
@@ -45,12 +66,44 @@ interface ChildrenRepository {
 
     suspend fun getByEducationPreference(pref: EducationPreference): List<Child>
 
+    //for Room
+//    fun pagingChildren(): Flow<
+//            androidx.paging.PagingData<com.example.zionkids.data.local.projection.ChildRow>
+//            >
+    /// ADDED — allow callers (VM/UI) to trigger a DeltaIn run explicitly.
+//    suspend fun triggerDeltaInNow(pageSize: Int = 200, maxPages: Int = 50)
+
+    /// ADDED — verify parity (logs metrics)
+//    suspend fun verifyParityNow()
+
+//    suspend fun peekLocalCount(): Int
+//suspend fun triggerDeltaInNow()
+//    suspend fun peekLocalCount(): Int
+
+    /// ADDED
+//    fun pagingChildren(): Flow<PagingData<ChildRow>>
+//
+    /// ADDED
+//    fun triggerDeltaInNow()
+
+    /// ADDED — Flow for Paging 3 (already present in your last paste; keep if you have it)
+//    fun pagingChildren(): Flow<PagingData<ChildRow>>
+
+    /// ADDED — fire-and-forget: run a simple delta-in pull on a background thread
+//    fun triggerSimpleDeltaIn()
+//
 }
 
 @Singleton
 class ChildrenRepositoryImpl @Inject constructor(
     @ChildrenRef private val childrenRef: CollectionReference,
-    @AttendanceRef private val attendanceRef: CollectionReference
+    @AttendanceRef private val attendanceRef: CollectionReference,
+    @ApplicationContext private val context: Context,
+//    private val childDao: ChildDao,
+//    private val syncDao: SyncStateDao,
+////    private val context: Context,
+//    private val childDao: ChildDao,
+//    private val deltaInEnqueuer: ChildrenDeltaInEnqueuer
 ) : ChildrenRepository {
 
     private fun Query.toChildrenSnapshotFlow(): Flow<ChildrenSnapshot> = callbackFlow {
@@ -245,8 +298,126 @@ class ChildrenRepositoryImpl @Inject constructor(
         }
     }
 
+    // /// ADDED — Room-backed paging flow (pageSize=50, prefetch=1, placeholders=false)
+//    override fun pagingChildren(): Flow<PagingData<ChildRow>> =
+//        Pager(
+//            config = PagingConfig(
+//                pageSize = 50,
+//                prefetchDistance = 1,
+//                enablePlaceholders = false,
+//                initialLoadSize = 50
+//            ),
+//            pagingSourceFactory = { childDao.pagingAll() }
+//        ).flow.flowOn(Dispatchers.IO)
+
+    /// ADDED
+//    override fun pagingChildren(): Flow<PagingData<ChildRow>> =
+//        Pager(
+//            config = PagingConfig(pageSize = 50, prefetchDistance = 1, enablePlaceholders = false),
+//            pagingSourceFactory = { childDao.pagingAll() as PagingSource<Int, ChildRow> }
+//        ).flow
+
+    /// ADDED
+//    override fun triggerDeltaInNow() {
+//        val req = OneTimeWorkRequestBuilder<ChildrenDeltaInWorker>()
+//            .setInputData(ChildrenDeltaInWorker.input(pageSize = 200, maxPages = 50))
+//            .addTag("delta_in_children")
+//            .build()
+//
+//        WorkManager.getInstance(context).enqueueUniqueWork(
+//            "delta_in_children_once",
+//            ExistingWorkPolicy.KEEP,
+//            req
+//        )
+//    }
+
+    /// ADDED
+//    override fun triggerSimpleDeltaIn() {
+//        // Lightweight: no WorkManager; runs once on IO
+//        CoroutineScope(Dispatchers.IO).launch {
+//            runCatching { deltaInOnce(pageSize = 200, maxPages = 50) }
+//                .onFailure { Timber.e(it, "SimpleDeltaIn failed") }
+//        }
+//    }
+
+    /// ADDED — core loop that pages by updatedAt,childId and writes to Room
+//    private suspend fun deltaInOnce(pageSize: Int, maxPages: Int) = withContext(Dispatchers.IO) {
+//        val key = "cursor_children_updatedAt"
+////        val lastMillis = syncDao.getCursorMillis(key) ?: 0L
+//        var cursorTs = if (lastMillis <= 0L) Timestamp(0, 1) else Timestamp(Date(lastMillis))
+//        var cursorId = ""
+//        var pages = 0
+//        var total = 0
+//
+//        Timber.i("SimpleDeltaIn: start last=%d", lastMillis)
+//
+//        while (pages < maxPages) {
+//            var q = childrenRef
+//                .orderBy("updatedAt", Query.Direction.ASCENDING)
+//                .orderBy("childId", Query.Direction.ASCENDING)
+//
+//            // On very first pass, skip null updatedAt docs (they break progress).
+//            if (lastMillis <= 0L) q = q.whereGreaterThan("updatedAt", Timestamp(0, 0))
+//            if (cursorId.isNotEmpty() || lastMillis > 0L) q = q.startAfter(cursorTs, cursorId)
+//
+//            val snap = q.limit(pageSize.toLong()).get().await()
+//            if (snap.isEmpty) {
+//                Timber.i("SimpleDeltaIn: done pages=%d total=%d", pages, total)
+//                break
+//            }
+//
+//            val children = snap.documents.mapNotNull { it.toChildOrNull() }
+//            val valid = children.filter { it.updatedAt != null }
+//            if (valid.isEmpty()) {
+//                Timber.w("SimpleDeltaIn: page had only null updatedAt; stopping.")
+//                break
+//            }
+//
+//            childDao.upsertAll(valid.map { it.toEntity() })
+//            total += valid.size
+//
+//            // Advance cursor by last valid (ASC)
+//            val lastValid = valid.maxBy { it.updatedAt!! }
+//            syncDao.upsertCursor(key, lastValid.updatedAt!!.toDate().time)
+//            cursorTs = lastValid.updatedAt!!
+//            cursorId = lastValid.childId
+//
+//            pages++
+//            Timber.i("SimpleDeltaIn: page=%d wrote=%d cursor=%s/%s",
+//                pages, valid.size, cursorTs.toDate(), cursorId)
+//        }
+//    }
 
 
+
+
+// …inside class ChildrenRepositoryImpl…
+
+    /// ADDED — Paging 3 over Room projection
+//    override fun pagingChildren(): Flow<PagingData<ChildRow>> =
+//        Pager(
+//            config = PagingConfig(
+//                pageSize = 50,
+//                prefetchDistance = 1,
+//                enablePlaceholders = false
+//            ),
+//            pagingSourceFactory = { childDao.pagingAll() }
+//        ).flow
+//
+//    override suspend fun peekLocalCount(): Int = withContext(Dispatchers.IO) {
+//        childDao.countAll()
+//    }
+//    /// ADDED
+//    override suspend fun triggerDeltaInNow(pageSize: Int, maxPages: Int) {
+//        deltaInEnqueuer.enqueueOnce(pageSize = pageSize, maxPages = maxPages)
+//    }
+
+    /// ADDED
+//    override suspend fun verifyParityNow() {
+//        deltaInEnqueuer.enqueueParityCheck()
+//    }
+
+//    override suspend fun peekLocalCount(): Int = childDao.countAll()
 
 
 }

@@ -22,7 +22,7 @@ data class EventDashboardUi(
     val selectedTab: EventTab = EventTab.UPCOMING,
     val statusFilter: Set<EventStatus> = setOf(EventStatus.SCHEDULED, EventStatus.ACTIVE), // default show not-completed
     // KPI Cards
-    val totalThisMonth: Int = 0,
+    val totalThisMonth: Int = 0,  //num of events in this month
     val nextEvent: Event? = null,
     val activeNowCount: Int = 0,
     // Derived list for current tab + filter
@@ -49,7 +49,7 @@ class EventDashboardViewModel @Inject constructor(
                             loading = false,
                             error = null,
                             all = list,
-                            totalThisMonth = computed.totalThisMonth,
+                            totalThisMonth = computed.totalThisMonth,  //num of events in this month
                             nextEvent = computed.nextEvent,
                             activeNowCount = computed.activeNowCount,
                             visible = computed.visible
@@ -92,6 +92,7 @@ class EventDashboardViewModel @Inject constructor(
             this?.toDate()?.time ?: min
         fun Event.eventMillis(): Long = eventDate.toDate().time
 
+        //num of events in this month
         val totalThisMonth = all.count { it.eventMillis() in startMonth..endMonth }
 
         val upcoming = all

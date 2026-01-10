@@ -59,6 +59,11 @@ import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+/// ADDED (imports)
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.LazyPagingItems
+//import com.example.zionkids.data.local.projection.ChildRow as UiChildRow  // alias to avoid name clash
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -71,12 +76,19 @@ fun ChildrenListScreen(
     authVM: AuthViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    /// ADDED — collect Room paging items
+//    val pagedRows = vm.paging.collectAsLazyPagingItems()
+    val pagedRows = vm.paging.collectAsLazyPagingItems()
+//    val pagedRows = vm.paging.collectAsLazyPagingItems()
+
     val authUi by authVM.ui.collectAsStateWithLifecycle()
     var search by rememberSaveable { mutableStateOf("") }
 
     var showConfirmClear by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+
 
     LaunchedEffect(ui.error) {
         ui.error?.let { Log.d("ChildrenListScreen", "Error: $it") }
@@ -105,9 +117,9 @@ fun ChildrenListScreen(
 //                            AssistChip(onClick = {}, label = { Text("Syncing…") })
 //                            Spacer(Modifier.width(6.dp))
 //                        }
-                        ui.lastRefreshed?.let {
-                            AssistChip(onClick = {}, label = { Text("Refreshed ${it.asHuman()}") })
-                        }
+ //                       ui.lastRefreshed?.let {
+ //                           AssistChip(onClick = {}, label = { Text("Refreshed ${it.asHuman()}") })
+ //                       }
                     }
                 },
                 navigationIcon = {
@@ -245,19 +257,58 @@ fun ChildrenListScreen(
 
             Box(Modifier.fillMaxSize()) {
                 when {
-                    ui.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    ui.loading && pagedRows.itemCount == 0 ->
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
                     ui.error != null -> Text(
                         "Failed to load: ${ui.error}",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                    ui.children.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
-                    else -> ChildrenList(items = ui.children, onChildClick = onChildClick)
+                    pagedRows.itemCount > 0 -> ChildrenPagingList(
+                        items = pagedRows,
+                        onChildClick = onChildClick
+                    )
+                    else -> Text("No matches", modifier = Modifier.align(Alignment.Center))
                 }
             }
+//            Box(Modifier.fillMaxSize()) {
+//                when {
+//                    ui.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+//                    ui.error != null -> Text(
+//                        "Failed to load: ${ui.error}",
+//                        color = MaterialTheme.colorScheme.error,
+//                        modifier = Modifier.align(Alignment.Center)
+//                    )
+//                    ui.children.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
+//                    else -> ChildrenList(items = ui.children, onChildClick = onChildClick)
+//                }
+//            }
+//            Box(Modifier.fillMaxSize()) {
+//                when {
+//                    ui.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+//                    ui.error != null -> Text(
+//                        "Failed to load: ${ui.error}",
+//                        color = MaterialTheme.colorScheme.error,
+//                        modifier = Modifier.align(Alignment.Center)
+//                    )
+////                    ui.children.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
+////                    else -> ChildrenList(items = ui.children, onChildClick = onChildClick)
+//                    /// CHANGED — prefer Room paging list for rendering
+////                    pagedRows.itemCount > 0 -> ChildrenPagingList(
+////                        items = pagedRows,
+////                        onChildClick = onChildClick
+////                    )
+//                    else -> Text("No matches", modifier = Modifier.align(Alignment.Center))
+//                }
+//            }
         }
     }
 }
+
+/// ADDED
+
+/// ADDED
+//
 
 @Composable
 private fun ChildrenList(
@@ -298,6 +349,33 @@ private fun ChildRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
+        }
+    }
+}
+
+@Composable
+private fun ChildrenPagingList(
+    items: LazyPagingItems<Child>,
+    onChildClick: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(items.itemCount) { index ->
+            val child = items[index]
+            if (child != null) {
+                ChildRow(child = child) { onChildClick(child.childId) }
+            }
+        }
+        // (optional) simple footer spinner while loading next page
+        item {
+            if (items.loadState.append.endOfPaginationReached.not()) {
+                Box(Modifier.fillMaxWidth().padding(16.dp)) {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+            }
         }
     }
 }

@@ -167,6 +167,36 @@ sealed class Screen(val route: String) {
     }
 
     object ConsecutiveAttendanceList : Screen("consecutiveAttendanceScreen")
+
+
+    /**************
+     *
+     * Technical Skills
+     *
+     */
+    object TechnicalSkillsDashboard : Screen("technicalSkills")
+
+
+    /**************
+     *
+     * Streets
+     *
+     */
+    object StreetsDashboard : Screen("streets")
+
+
+
+    /**************
+     *
+     * Reports
+     *
+     */
+    object ReportsDashboard : Screen("reports")
+
+
+
+
+
 }
 
 //package com.example.zionkids.presentation.navigation

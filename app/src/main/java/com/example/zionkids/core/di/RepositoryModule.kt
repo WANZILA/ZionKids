@@ -14,6 +14,11 @@ import com.example.zionkids.domain.repositories.online.EventsRepository
 import com.example.zionkids.domain.repositories.online.EventsRepositoryImpl
 import com.example.zionkids.domain.repositories.online.LockedAccountsRepository
 import com.example.zionkids.domain.repositories.online.LockedAccountsRepositoryImpl
+//import com.example.zionkids.domain.repositories.online.StreetRepository
+import com.example.zionkids.domain.repositories.online.StreetsRepository
+import com.example.zionkids.domain.repositories.online.StreetsRepositoryImpl
+import com.example.zionkids.domain.repositories.online.TechnicalSkillsRepository
+import com.example.zionkids.domain.repositories.online.TechnicalSkillsRepositoryImpl
 import com.example.zionkids.domain.repositories.online.UsersRepository
 import com.example.zionkids.domain.repositories.online.UsersRepositoryImpl
 import dagger.Binds
@@ -53,5 +58,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAppUpdateRepository(impl: AppUpdateRepositoryImpl): AppUpdateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTechnicalSkillsRepository(impl: TechnicalSkillsRepositoryImpl): TechnicalSkillsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStreetsRepository(impl: StreetsRepositoryImpl): StreetsRepository
+
 
 }

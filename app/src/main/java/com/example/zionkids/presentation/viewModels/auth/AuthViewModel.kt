@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.zionkids.core.Utils.Network.NetworkMonitorUtil
 import com.example.zionkids.core.di.AppVersionCode
 import com.example.zionkids.core.di.UsersRef
+import com.example.zionkids.core.sync.ChildrenSyncScheduler
+import com.example.zionkids.core.sync.attendance.AttendanceSyncScheduler
+import com.example.zionkids.core.sync.event.EventSyncScheduler
 import com.example.zionkids.data.model.AssignedRole
 import com.example.zionkids.data.model.UserProfile
 import com.example.zionkids.domain.repositories.online.AuthRepository
@@ -27,7 +30,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.time.withTimeoutOrNull
+//import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 
 // Attempts helpers
@@ -40,7 +43,9 @@ class AuthViewModel @Inject constructor(
     private val users: UsersRepository,
     private val networkMonitor: NetworkMonitorUtil,
     @UsersRef private val usersRef: CollectionReference,
-    @AppVersionCode private val appVersionCode: Int
+    @AppVersionCode private val appVersionCode: Int,
+    @dagger.hilt.android.qualifiers.ApplicationContext
+    private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(AuthUiState())
@@ -418,6 +423,13 @@ class AuthViewModel @Inject constructor(
                     viewModelScope.launch { runCatching { upsertClientVersion(uid) } }
                 }
                 _ui.update { it.copy(loading = false) }
+//                ChildrenSyncScheduler.enqueuePeriodic(context)
+                ChildrenSyncScheduler.enqueueNow(appContext)
+                EventSyncScheduler.enqueueNow(appContext)
+                AttendanceSyncScheduler.enqueueNow(appContext)
+//                AttendanceSyncScheduler.enqueuePeriodic(appContext)
+
+
                 onSuccess()
             }
 
@@ -547,6 +559,9 @@ class AuthViewModel @Inject constructor(
             // Ensure the profile exists so rules (isEnabled + hasRole) pass for volunteers
             // (If offline, this safely no-ops; will succeed next time online.)
             runCatching { ensureUserDocExistsIfMissing() }
+            ChildrenSyncScheduler.enqueueNow(appContext)
+            EventSyncScheduler.enqueueNow(appContext)
+            AttendanceSyncScheduler.enqueueNow(appContext)
 
             updateLastKnownNameFrom(cachedProfile)
             usersJob?.cancel(); usersJob = null // don’t run admin stream offline

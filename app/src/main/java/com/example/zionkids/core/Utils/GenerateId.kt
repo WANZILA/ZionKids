@@ -9,6 +9,8 @@ object GenerateId {
             "volunteer" -> "vo"
             "admin" -> "ad"
             "event" -> "ev"
+            "street" ->"stre"
+            "technicalSkills" -> "ts"
             "other" -> "ot"
             else -> "gen"
         }

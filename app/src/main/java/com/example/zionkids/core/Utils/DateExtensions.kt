@@ -16,3 +16,6 @@ fun formatDate(ts: Timestamp?): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(ts.toDate())
 }
+
+fun Timestamp?.fmt(pattern: String = "yyyy-MM-dd HH:mm"): String =
+    this?.toDate()?.let { SimpleDateFormat(pattern, Locale.getDefault()).format(it) } ?: "—"

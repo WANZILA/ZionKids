@@ -86,22 +86,22 @@ fun UserFormScreen(
                 readOnly = !isCreate
             )
 
-            if (isCreate) {
-                OutlinedTextField(
-                    value = ui.password,
-                    onValueChange = vm::updatePassword,
-                    label = { Text("Password (min 6 chars)") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    )
-                )
-            }
+//            if (isCreate) {
+//                OutlinedTextField(
+//                    value = ui.password,
+//                    onValueChange = vm::updatePassword,
+//                    label = { Text("Password (min 6 chars)") },
+//                    singleLine = true,
+//                    visualTransformation = PasswordVisualTransformation(),
+//                    modifier = Modifier.fillMaxWidth(),
+//                    colors = OutlinedTextFieldDefaults.colors(
+//                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+//                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+//                        focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+//                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+//                    )
+//                )
+//            }
 
             if (!isCreate) {
                 Row(

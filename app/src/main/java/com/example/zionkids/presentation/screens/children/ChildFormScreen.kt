@@ -4,6 +4,7 @@ package com.example.zionkids.presentation.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.zionkids.data.model.*
+import com.example.zionkids.presentation.screens.widgets.PickerDialog
 import com.example.zionkids.presentation.viewModels.children.ChildFormUiState
 import com.example.zionkids.presentation.viewModels.children.ChildFormViewModel
 import com.google.firebase.Timestamp
@@ -82,8 +84,9 @@ fun ChildFormScreen(
                 }
                 is ChildFormViewModel.ChildFormEvent.Saved -> {
                     // show snackbar first (optional), then navigate/finish
-                    snackbarHostState.showSnackbar("Saved ✔")
                     onFinished(ev.id)
+                    snackbarHostState.showSnackbar("Saved ")
+                    
                 }
             }
         }
@@ -242,6 +245,10 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
         Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
+        val display = vm.ui.street.trim().ifBlank { "Tap to choose Street" }
+        var showSkillsDialog by remember {  mutableStateOf(false) }
+
         // First name (required)
         AppTextField(
             value = uiState.fName,
@@ -348,22 +355,44 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
         }
 
         // Street
+//        AppTextField(
+//            value = uiState.street,
+//            onValueChange = vm::onStreet,
+//            label = "Street / Nearby landmark",
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+//            leadingIcon = { Icon(Icons.Outlined.Home, null) },
+//            trailingIcon = {
+//                if (uiState.street.isNotEmpty()) {
+//                    IconButton(onClick = { vm.onStreet("") }) {
+//                        Icon(Icons.Outlined.Clear, "Clear")
+//                    }
+//                }
+//            },
+//            errorText = uiState.streetError,
+//        )
+
         AppTextField(
-            value = uiState.street,
-            onValueChange = vm::onStreet,
-            label = "Street / Nearby landmark",
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            leadingIcon = { Icon(Icons.Outlined.Home, null) },
-            trailingIcon = {
-                if (uiState.street.isNotEmpty()) {
-                    IconButton(onClick = { vm.onStreet("") }) {
-                        Icon(Icons.Outlined.Clear, "Clear")
-                    }
-                }
-            },
-            errorText = uiState.streetError,
+            value = display,
+            onValueChange = { /* read-only */ },
+            label = "Street ",
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showSkillsDialog = true },
+            leadingIcon = { Icon(Icons.Outlined.PanTool, null) },
+            readOnly = true,   // user can’t type
+            enabled = false     // but the whole field is tappable
+
         )
+
+        if (showSkillsDialog) {
+            PickerDialog(
+                title = "Select Street",
+                feature = vm.streetPicker,
+                onPicked = { vm.onStreetPicked (it); showSkillsDialog = false },
+                onDismiss = { showSkillsDialog = false }
+            )
+        }
 
         EnumDropdown(
             title = "Accepted Jesus?",
@@ -410,13 +439,14 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForEducationPreference,
             iconFor = ::iconForEducationPreference
         )
+
         EnumDropdown(
             title = "Resettlement preference",
             selected = uiState.resettlementPreference,
             values = ResettlementPreference.values().toList(),
             onSelected = { vm.ui = vm.ui.copy(resettlementPreference = it) },
-            labelFor = { it.name },
-            iconFor = { null }
+            labelFor = ::labelForResettlementPreference,
+            iconFor = ::iconForResettlementPreference
         )
     }
 }
@@ -456,31 +486,107 @@ private fun StepBackground(uiState: ChildFormUiState, vm: ChildFormViewModel) {
 @Composable
 private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
+
+    val display = vm.ui.technicalSkills.trim().ifBlank { "Tap to choose skill" }
+    var showTechSkillDialog by remember {  mutableStateOf(false) }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AppTextField(
-            value = uiState.reasonLeftSchool,
-            onValueChange = { vm.ui = vm.ui.copy(reasonLeftSchool = it) },
-            label = "Reason left school",
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Outlined.Info, null) }
+        if(uiState.educationPreference.name == EducationPreference.SKILLING.toString()){
+//            AppTextField(
+//                value = display,
+//                onValueChange = { vm.ui = vm.ui.copy(technicalSkills = it) },
+//                label = "Select skill",
+//                modifier = Modifier.fillMaxWidth(),
+//                leadingIcon = { Icon(Icons.Outlined.PanTool, null) }
+//            )
+            AppTextField(
+                value = display,
+                onValueChange = { /* read-only */ },
+                label = "Select skill",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showTechSkillDialog = true },
+                leadingIcon = { Icon(Icons.Outlined.PanTool, null) },
+                readOnly = true,   // user can’t type
+                enabled = false     // but the whole field is tappable
+
+            )
+
+            if (showTechSkillDialog) {
+                PickerDialog(
+                    title = "Select skill",
+                    feature = vm.technicalSkillsPicker,
+                    onPicked = { vm.onTechnicalSkillsPicked(it); showTechSkillDialog = false },
+                    onDismiss = { showTechSkillDialog = false }
+                )
+            }
+        }
+
+        EnumDropdown(
+            title = "Educational Level",
+            selected = uiState.educationLevel,
+            values = EducationLevel.values().toList(),
+            onSelected = { vm.ui = vm.ui.copy(educationLevel = it) },
+            labelFor = ::labelForEducationLevel,
+            iconFor = ::iconForEducationLevel
         )
-        AppTextField(
-            value = uiState.lastClass,
-            onValueChange = { vm.ui = vm.ui.copy(lastClass = it) },
-            label = "Last class",
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Outlined.School, null) }
-        )
-        AppTextField(
-            value = uiState.previousSchool,
-            onValueChange = { vm.ui = vm.ui.copy(previousSchool = it) },
-            label = "Previous school",
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Outlined.School, null) }
-        )
+
+        if(
+            uiState.educationLevel.name == EducationLevel.NURSERY.toString() ||
+            uiState.educationLevel.name == EducationLevel.PRIMARY.toString() ||
+            uiState.educationLevel.name == EducationLevel.SECONDARY.toString()
+            ){
+
+            AppTextField(
+                value = uiState.lastClass,
+                onValueChange = { vm.ui = vm.ui.copy(lastClass = it) },
+                label = "Last class",
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Outlined.School, null) }
+            )
+            AppTextField(
+                value = uiState.previousSchool,
+                onValueChange = { vm.ui = vm.ui.copy(previousSchool = it) },
+                label = "Previous school",
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Outlined.School, null) }
+            )
+
+            EnumDropdown(
+                title = "Who was your Sponsor",
+                selected = uiState.formerSponsor,
+                values = Relationship.values().toList(),
+                onSelected = { vm.ui = vm.ui.copy(formerSponsor = it) },
+                labelFor = ::labelForRelationship,
+                iconFor = ::iconForRelationship
+            )
+
+            if(uiState.formerSponsor.name == Relationship.OTHER.toString()){
+                AppTextField(
+                    value = uiState.formerSponsorOther,
+                    onValueChange = { vm.ui = vm.ui.copy(formerSponsorOther = it) },
+                    label = "Who was your sponsor",
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.School, null) }
+                )
+            }
+            AppTextField(
+                value = uiState.reasonLeftSchool,
+                onValueChange = { vm.ui = vm.ui.copy(reasonLeftSchool = it) },
+                label = "Reason left school",
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Outlined.Info, null) }
+            )
+        }
+
+
+//
+
+
+
     }
 }
 
@@ -731,7 +837,7 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             leadingIcon = { Icon(Icons.Outlined.EditNote, null) },
             maxLines = 5
         )
-
+//    when a child has completed a skilling or school and they are working
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Graduated")
             Spacer(Modifier.width(12.dp))
@@ -1071,6 +1177,19 @@ private fun iconForGender(v: Gender): ImageVector = when (v) {
     Gender.FEMALE -> Icons.Outlined.Woman
 }
 
+private fun labelForResettlementPreference(v: ResettlementPreference): String = when (v) {
+    ResettlementPreference.DIRECT_HOME ->  "Direct Home"
+    ResettlementPreference.TEMPORARY_HOME -> "Temporary Home"
+    ResettlementPreference.OTHER -> "Other"
+//    Gender.FEMALE -> "Female"
+}
+
+private fun iconForResettlementPreference(v: ResettlementPreference): ImageVector = when (v) {
+    ResettlementPreference.DIRECT_HOME ->  Icons.Outlined.Home
+    ResettlementPreference.TEMPORARY_HOME -> Icons.Outlined.Hotel
+    ResettlementPreference.OTHER -> Icons.Outlined.OtherHouses
+}
+
 private fun iconForRelationship(v: Relationship): ImageVector = when (v) {
     Relationship.NONE -> Icons.Outlined.HorizontalRule
     Relationship.PARENT -> Icons.Outlined.EmojiPeople
@@ -1084,6 +1203,19 @@ private fun labelForRelationship(v: Relationship): String = when (v) {
     Relationship.UNCLE -> "Uncle"
     Relationship.AUNTY -> "Aunty"
     Relationship.OTHER -> "Other"
+}
+
+private fun iconForEducationLevel(v: EducationLevel): ImageVector = when (v) {
+    EducationLevel.NONE -> Icons.Outlined.NoAccounts
+    EducationLevel.NURSERY -> Icons.Outlined.BabyChangingStation
+    EducationLevel.PRIMARY -> Icons.Outlined.ChildCare
+    EducationLevel.SECONDARY -> Icons.Outlined.Person
+}
+private fun labelForEducationLevel(v: EducationLevel): String = when (v) {
+    EducationLevel.NONE -> "None"
+    EducationLevel.NURSERY -> "Nursery"
+    EducationLevel.PRIMARY -> "Primary"
+    EducationLevel.SECONDARY -> "Secondary"
 }
 
 @Suppress("unused")
@@ -1157,12 +1289,18 @@ private fun AppTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+//            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             errorBorderColor = MaterialTheme.colorScheme.error,
             errorContainerColor = MaterialTheme.colorScheme.surface,
-            errorCursorColor = MaterialTheme.colorScheme.error
+            errorCursorColor = MaterialTheme.colorScheme.error,
+            disabledTextColor = MaterialTheme.colorScheme.onSurface, //  Prevent fade
+            disabledBorderColor = MaterialTheme.colorScheme.outline,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     )
 }

@@ -33,7 +33,7 @@ fun permissionsForNames(roleNames: List<String>): UserPermissions {
         .toSet()
 
     val isAdmin = "ADMIN" in names
-    val isLead = "LEAD" in names
+    val isLead = "LEADER" in names
     val isVolunteer = "VOLUNTEER" in names
 
     val adminOrLead = isAdmin || isLead
