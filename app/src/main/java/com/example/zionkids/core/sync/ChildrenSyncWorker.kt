@@ -1,29 +1,18 @@
 package com.example.zionkids.domain.sync
 
-
-
-// <app/src/main/java/com/example/zionkids/domain/sync/ChildrenSyncWorker.kt>
-// /// CHANGED: add tiny conflict resolver (prefer higher version, else newer updatedAt; keep local if equal and dirty);
-// /// CHANGED: use resolver to merge pulled remote docs with local before upsertAll
-
-
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.zionkids.core.di.ChildrenRef
-import com.example.zionkids.core.sync.resolveChild
-//import com.example.zionkids.core.sync.SyncPrefs
-//import com.example.zionkids.core.sync.resolveChild
-import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.mappers.toFirestoreMapPatch
-//import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
+import com.example.zionkids.data.model.Child
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.EntryPoint
@@ -34,9 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import kotlin.math.max
+import kotlin.system.measureTimeMillis
 
-// app/src/main/java/com/example/zionkids/domain/sync/ChildrenSyncWorker.kt
 @HiltWorker
 class ChildrenSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
@@ -46,7 +34,11 @@ class ChildrenSyncWorker @AssistedInject constructor(
     private val firestore: FirebaseFirestore
 ) : CoroutineWorker(appContext, params) {
 
-    // ---- Fallback path for when HiltWorkerFactory isn't used ----
+    companion object {
+        private const val TAG = "ChildrenSyncWorker"
+        private const val MAX_BATCH = 500
+    }
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface WorkerDeps {
@@ -55,8 +47,6 @@ class ChildrenSyncWorker @AssistedInject constructor(
         fun firestore(): FirebaseFirestore
     }
 
-    // This secondary ctor is what the default WM factory looks for.
-    // It delegates to the primary assisted-inject ctor with deps pulled from Hilt.
     constructor(appContext: Context, params: WorkerParameters) : this(
         appContext,
         params,
@@ -65,83 +55,163 @@ class ChildrenSyncWorker @AssistedInject constructor(
         EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).firestore()
     )
 
-    override suspend fun doWork(): Result {
-        // ... your existing logic unchanged ...
-        return try {
-            // 1) collect dirty locals
-            val dirty = childDao.loadDirtyBatch(limit = 500)
-            if (dirty.isEmpty()) return Result.success()
-
-            val now = com.google.firebase.Timestamp.now()
-
-            // 2) pre-resolve against current remote docs (KISS: sequential; fine for ≤500)
-            val toWrite = mutableListOf<Child>()
-            for (local in dirty) {
-                val remoteSnap = childrenRef.document(local.childId).get().await()
-                val remote = remoteSnap.toObject(Child::class.java) // may be null
-                val resolved = resolveChild(local, remote)
-                // force audit fields for the write (server-side doc)
-                toWrite += resolved.copy(updatedAt = now)
-            }
-
-            // 3) write resolved docs in a single batch (maps to avoid POJO edge cases)
-            childrenRef.firestore.runBatch { b ->
-                toWrite.forEach { child ->
-                    val doc = childrenRef.document(child.childId)
-                    val patch = child.toFirestoreMapPatch().toMutableMap().apply {
-                        this["childId"]   = child.childId
-                        this["updatedAt"] = now
-                        this["version"]   = child.version
-                    }
-                    if (child.isDeleted) b.delete(doc) else b.set(doc, patch, com.google.firebase.firestore.SetOptions.merge())
-                }
-            }.await()
-
-            // 4) mark local rows clean with the same timestamp; bump version to the max we just wrote
-            val maxVersion = toWrite.maxOf { it.version }
-            childDao.markBatchPushed(
-                ids = dirty.map { it.childId },
-                newVersion   = maxVersion,
-                newUpdatedAt = now
-            )
-
-            Result.success()
-        } catch (t: Throwable) {
-            timber.log.Timber.e(t, "ChildrenSyncWorker failed")
-            Result.retry()
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val totalMs = measureTimeMillis {
+            Timber.i("%s: start attempt=%d", TAG, runAttemptCount)
         }
 
-//            // 1) collect dirty locals
-//            val dirty = childDao.loadDirtyBatch(limit = 500)
-//            if (dirty.isEmpty()) return Result.success()
-//
-//
-//
-//            val now = Timestamp.now()
-//            firestore.runBatch { b ->
-//                dirty.forEach { c ->
-//                    val doc = childrenRef.document(c.childId)
-//                    if (c.isDeleted) b.delete(doc)
-//                    else {
-//                        val patch = c.toFirestoreMapPatch().toMutableMap().apply {
-//                            this["childId"] = c.childId
-//                            this["updatedAt"] = now
-//                            this["version"]  = c.version
-//                        }
-//                        b.set(doc, patch, SetOptions.merge())
-//                    }
-//                }
-//            }.await()
-//
-//            childDao.markBatchPushed(
-//                ids = dirty.map { it.childId },
-//                newVersion   = dirty.maxOf { it.version },
-//                newUpdatedAt = now
-//            )
-//            Result.success()
-//        } catch (t: Throwable) {
-//            Timber.e(t, "ChildrenSyncWorker failed")
-//            Result.retry()
-//        }
+        try {
+            // 1) Collect dirty children
+            val dirty = childDao.loadDirtyBatch(limit = MAX_BATCH)
+            Timber.i("%s: loaded dirty=%d", TAG, dirty.size)
+            if (dirty.isEmpty()) return@withContext Result.success()
+
+            val now = Timestamp.now()
+
+            val toPush = mutableListOf<Child>()
+            val conflictRemotes = mutableListOf<Child>()
+
+            // 2) For each dirty local, check remote version+updatedAt from SNAPSHOT fields (avoid defaults)
+            val prefetchMs = measureTimeMillis {
+                for (local in dirty) {
+                    if (local.childId.isBlank()) {
+                        Timber.w("%s skipping dirty row with blank childId", TAG)
+                        continue
+                    }
+
+                    val docRef = childrenRef.document(local.childId)
+
+                    // Force server read so we don't compare against stale cache
+                    val snap = docRef.get(Source.SERVER).await()
+
+                    if (!snap.exists()) {
+                        toPush += local
+                        continue
+                    }
+
+                    val remoteVersion = snap.getLong("version")
+                    val remoteUpdatedAt = snap.getTimestamp("updatedAt")
+
+                    // If remote is missing required fields, treat LOCAL as winner (but log loudly)
+                    if (remoteVersion == null || remoteUpdatedAt == null) {
+                        Timber.w(
+                            "%s remote missing fields childId=%s remoteVersion=%s remoteUpdatedAt=%s; pushing local",
+                            TAG, local.childId, remoteVersion, remoteUpdatedAt
+                        )
+                        toPush += local
+                        continue
+                    }
+
+                    val localVersion = local.version
+                    val localUpdatedAt = local.updatedAt
+
+                    // Server-wins rule:
+                    // 1) higher version wins
+                    // 2) if version ties, newer updatedAt wins
+                    val serverWins =
+                        (remoteVersion > localVersion) ||
+                                (remoteVersion == localVersion &&
+                                        remoteUpdatedAt.toDate().time > localUpdatedAt.toDate().time)
+
+                    if (serverWins) {
+                        Timber.d(
+                            "%s server-wins childId=%s (remote.version=%d local.version=%d) (remote.updatedAt=%s local.updatedAt=%s)",
+                            TAG, local.childId, remoteVersion, localVersion, remoteUpdatedAt, localUpdatedAt
+                        )
+
+                        val remoteObj = snap.toObject(Child::class.java)
+                        if (remoteObj != null) {
+                            // IMPORTANT: enforce snapshot fields into the object (avoid defaults)
+                            conflictRemotes += remoteObj.copy(
+                                childId = remoteObj.childId.ifBlank { local.childId },
+                                version = remoteVersion,
+                                updatedAt = remoteUpdatedAt,
+                                isDirty = false
+                            )
+                        } else {
+                            // If remote can't parse, do NOT overwrite local; keep it dirty and retry later
+                            Timber.w("%s remote parse failed childId=%s; leaving local dirty (will retry)", TAG, local.childId)
+                        }
+                    } else {
+                        toPush += local
+                    }
+                }
+            }
+
+            Timber.i(
+                "%s: prefetch done toPush=%d conflicts=%d (%dms)",
+                TAG, toPush.size, conflictRemotes.size, prefetchMs
+            )
+
+            // 3) Apply server-wins conflicts into Room (clean)
+            if (conflictRemotes.isNotEmpty()) {
+                val conflictUpsertMs = measureTimeMillis {
+                    childDao.upsertAll(conflictRemotes)
+                }
+                Timber.i("%s: applied conflicts into Room=%d (%dms)", TAG, conflictRemotes.size, conflictUpsertMs)
+            }
+
+            // 4) Push safe locals to Firestore (tombstones are written as docs; no delete)
+            if (toPush.isNotEmpty()) {
+                val pushMs = measureTimeMillis {
+                    firestore.runBatch { b ->
+                        toPush.forEach { child ->
+                            val docRef = childrenRef.document(child.childId)
+
+                            // bump version ON PUSH, then reflect back into Room after success
+                            val nextVersion = child.version + 1
+
+                            val toRemote = child.copy(
+                                updatedAt = now,
+                                version = nextVersion
+                            )
+
+                            val patch = toRemote.toFirestoreMapPatch().toMutableMap().apply {
+                                // Enforce worker-consistent values (override mapper defaults)
+                                this["childId"] = toRemote.childId
+                                this["updatedAt"] = now
+                                this["version"] = nextVersion
+
+                                // Tombstones as docs (no delete)
+                                this["isDeleted"] = toRemote.isDeleted
+                                if (toRemote.isDeleted) {
+                                    this["deletedAt"] = (toRemote.deletedAt ?: now)
+                                }
+                            }
+
+                            b.set(docRef, patch, SetOptions.merge())
+                        }
+                    }.await()
+                }
+
+                Timber.i("%s: pushed=%d (%dms)", TAG, toPush.size, pushMs)
+
+                // 5) Mark pushed rows clean in Room AND bump local version to match remote (+1)
+                val pushedIds = toPush.map { it.childId }
+                if (pushedIds.isNotEmpty()) {
+                    val markMs = measureTimeMillis {
+                        // Your DAO increments version = version + 1 internally (correct)
+                        childDao.markBatchPushed(
+                            ids = pushedIds,
+                            newUpdatedAt = now
+                        )
+                    }
+                    Timber.i("%s: marked clean ids=%d (+1 version) (%dms)", TAG, pushedIds.size, markMs)
+                }
+
+                Timber.d("%s: pushed=%d (dirty=%d) conflicts=%d", TAG, toPush.size, dirty.size, conflictRemotes.size)
+            } else {
+                Timber.d(
+                    "%s: nothing to push after conflict checks (dirty=%d) conflicts=%d",
+                    TAG, dirty.size, conflictRemotes.size
+                )
+            }
+
+            Timber.i("%s: success totalMs~%d", TAG, totalMs)
+            Result.success()
+        } catch (t: Throwable) {
+            Timber.e(t, "%s failed; will retry.", TAG)
+            Result.retry()
+        }
     }
 }

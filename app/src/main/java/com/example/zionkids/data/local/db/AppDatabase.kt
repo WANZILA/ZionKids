@@ -25,7 +25,7 @@ import com.example.zionkids.data.model.Event
         Attendance::class,
                ],
     version = 1,
-    exportSchema = true
+    exportSchema = false
 )
 @TypeConverters(TimestampConverters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -36,20 +36,20 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract  fun attendanceDao(): AttendanceDao
 
-    /// CHANGED: add migration to evolve existing installs without data loss
-    companion object {
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE children ADD COLUMN isDirty INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE children ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE children ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
-
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDirty ON children(isDirty)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDeleted ON children(isDeleted)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_version ON children(version)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDeleted_updatedAt ON children(isDeleted, updatedAt)")
-            }
-        }
-    }
+//    /// CHANGED: add migration to evolve existing installs without data loss
+//    companion object {
+//        val MIGRATION_1_2 = object : Migration(1, 2) {
+//            override fun migrate(db: SupportSQLiteDatabase) {
+//                db.execSQL("ALTER TABLE children ADD COLUMN isDirty INTEGER NOT NULL DEFAULT 0")
+//                db.execSQL("ALTER TABLE children ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+//                db.execSQL("ALTER TABLE children ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
+//
+//                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDirty ON children(isDirty)")
+//                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDeleted ON children(isDeleted)")
+//                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_version ON children(version)")
+//                db.execSQL("CREATE INDEX IF NOT EXISTS index_children_isDeleted_updatedAt ON children(isDeleted, updatedAt)")
+//            }
+//        }
+//    }
 }
 

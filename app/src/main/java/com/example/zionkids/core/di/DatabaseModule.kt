@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
 import com.example.zionkids.data.local.dao.AttendanceDao
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.local.dao.EventDao
@@ -118,4 +119,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAttendanceDao(db: AppDatabase): AttendanceDao = db.attendanceDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncCoordinatorScheduler(): SyncCoordinatorScheduler = SyncCoordinatorScheduler
+
 }

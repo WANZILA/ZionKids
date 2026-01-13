@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
+import com.example.zionkids.domain.repositories.offline.OfflineEventsRepository
 import com.example.zionkids.domain.repositories.online.EventsRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,7 +32,7 @@ data class EventDashboardUi(
 
 @HiltViewModel
 class EventDashboardViewModel @Inject constructor(
-    private val repo: EventsRepository
+    private val repo: OfflineEventsRepository
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(EventDashboardUi())

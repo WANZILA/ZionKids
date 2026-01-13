@@ -39,7 +39,7 @@ interface EventDao {
 
     @Query("""
         SELECT * FROM events
-        --WHERE isDeleted = 0
+        WHERE isDeleted = 0
         ORDER BY eventDate DESC  --, createdAt DESC, updatedAt DESC
     """)
     fun observeAllActive(): Flow<List<Event>>
@@ -95,9 +95,6 @@ interface EventDao {
     @Query("UPDATE events SET isDirty = :dirty WHERE eventId IN (:ids)")
     suspend fun setDirty(ids: List<String>, dirty: Boolean)
 
-    // /// CHANGED: softDelete now accepts Firestore Timestamp to keep Timestamp-only flow.
-    @Query("UPDATE events SET isDeleted = 1, isDirty = 1, updatedAt = :now WHERE eventId = :id")
-    suspend fun softDelete(id: String, now: Timestamp)
 
     // Hard delete (unchanged)
     @Query("DELETE FROM events WHERE eventId = :id")
@@ -105,112 +102,54 @@ interface EventDao {
 
     // /// CHANGED: markBatchPushed used by EventSyncWorker to finalize a successful push.
     // ///          Sets isDirty=false, bumps version, and writes updatedAt as Firestore Timestamp.
-    @Query("""UPDATE events SET
-              isDirty = 0,
-              version = :newVersion,
-              updatedAt = :newUpdatedAt
-            WHERE eventId IN (:ids)""")
-    suspend fun markBatchPushed(
-        ids: List<String>,
-        newVersion: Long,
-        newUpdatedAt: Timestamp
-    )
+    @Query("""
+    UPDATE events SET
+        isDirty = 0,
+        version = version + 1,
+        updatedAt = :newUpdatedAt
+    WHERE eventId IN (:ids)
+""")
+    suspend fun markBatchPushed(ids: List<String>, newUpdatedAt: Timestamp)
+
+    // <app/src/main/java/com/example/zionkids/data/local/dao/EventDao.kt>
+// /// CHANGED: batch fetch for pull-merge
+    @Query("SELECT * FROM events WHERE eventId IN (:ids)")
+    suspend fun getByIds(ids: List<String>): List<Event>
+
+    // <app/src/main/java/com/example/zionkids/data/local/dao/EventDao.kt>
+
 //    @Query("""
-//        UPDATE events
-//        SET isDirty = 0,
-//            version  = :newVersion,
-//            updatedAt = :newUpdatedAt
-//        WHERE eventId IN (:ids)
-//    """)
-//    suspend fun markBatchPushed(
-//        ids: List<String>,
-//        newVersion: Long,
-//        newUpdatedAt: Timestamp
-//    )
+//    UPDATE events SET
+//        isDeleted = 1,
+//        isDirty   = 1,
+//        deletedAt = :now,
+//        updatedAt = :now,
+//        version   = version + 1
+//    WHERE eventId = :id
+//""")
+//    suspend fun softDelete(id: String, now: Timestamp)
+
+    // /// CHANGED: cascade tombstone by eventId (mirror childId cascade)
+    @Query(
+        """
+    UPDATE events
+    SET isDeleted = 1,
+        deletedAt = :now,
+        isDirty = 1,
+        updatedAt = :now,
+        version = version + 1
+    WHERE eventId = :eventId AND isDeleted = 0
+    """
+    )
+    suspend fun softDeleteByEventId(eventId: String, now: Timestamp)
+
+    @Query("""
+  DELETE FROM events
+  WHERE isDeleted = 1 AND isDirty = 0
+    AND deletedAt IS NOT NULL AND deletedAt <= :cutoff
+""")
+    suspend fun hardDeleteOldTombstones(cutoff: Timestamp): Int
+
+
 }
 
-//package com.example.zionkids.data.local.dao
-//
-//// <app/src/main/java/com/example/zionkids/data/local/dao/EventDao.kt>
-//// /// NEW: Room DAO for events with Paging3, delta queries, bulk upserts, and dirty management.
-//// + Added paging queries ordered by eventDate/updatedAt/createdAt
-//// + Added delta fetch by (updatedAt/version)
-//// + Added markDirty/softDelete helpers for offline-first writes
-////package com.example.zionkids.data.local.dao
-//
-//import androidx.paging.PagingSource
-//import androidx.room.Dao
-//import androidx.room.Query
-//import androidx.room.Upsert
-//import com.example.zionkids.data.model.Event
-//import kotlinx.coroutines.flow.Flow
-//
-//@Dao
-//interface EventDao {
-//
-//    // + Paging source for smooth lists (active only)
-//    @Query("""
-//        SELECT * FROM events
-//        WHERE isDeleted = 0
-//        ORDER BY eventDate DESC, updatedAt DESC, createdAt DESC
-//    """)
-//    fun pagingActive(): PagingSource<Int, Event>
-//
-//    // + Stream all active events (for simple flows / snapshots)
-//    @Query("""
-//        SELECT * FROM events
-//        WHERE isDeleted = 0
-//        ORDER BY eventDate DESC, updatedAt DESC, createdAt DESC
-//    """)
-//    fun observeAllActive(): Flow<List<Event>>
-//
-//    // + Observe one
-//    @Query("SELECT * FROM events WHERE eventId = :id LIMIT 1")
-//    fun observeById(id: String): Flow<Event?>
-//
-//    // + Get once (fast path)
-//    @Query("SELECT * FROM events WHERE eventId = :id LIMIT 1")
-//    suspend fun getOnce(id: String): Event?
-//
-//    // + Delta pulls by updatedAt/version (millis + scalar). Keep small page sizes at call site.
-//    @Query("""
-//        SELECT * FROM events
-//        WHERE (updatedAt > :afterUpdatedAtMillis) OR (version > :afterVersion)
-//        ORDER BY updatedAt ASC
-//        LIMIT :limit
-//    """)
-//    suspend fun getSince(afterUpdatedAtMillis: Long, afterVersion: Long, limit: Int): List<Event>
-//
-//    // + Dirty rows for push (batch ≤ 500)
-//    @Query("""
-//        SELECT * FROM events
-//        WHERE isDirty = 1
-//        ORDER BY updatedAt ASC
-//        LIMIT :limit
-//    """)
-//    suspend fun getDirty(limit: Int): List<Event>
-//
-//    // + Count dirty (for metadata)
-//    @Query("SELECT COUNT(*) FROM events WHERE isDirty = 1")
-//    fun observeDirtyCount(): Flow<Int>
-//
-//    // + Bulk upsert
-//    @Upsert
-//    suspend fun upsertAll(items: List<Event>)
-//
-//    // + Single upsert
-//    @Upsert
-//    suspend fun upsertOne(item: Event)
-//
-//    // + Mark dirty/clean
-//    @Query("UPDATE events SET isDirty = :dirty WHERE eventId IN (:ids)")
-//    suspend fun setDirty(ids: List<String>, dirty: Boolean)
-//
-//    // + Soft delete (isDeleted=1, isDirty=1, updatedAt = :nowMillis)
-//    @Query("UPDATE events SET isDeleted = 1, isDirty = 1, updatedAt = :nowMillis WHERE eventId = :id")
-//    suspend fun softDelete(id: String, nowMillis: Long)
-//
-//    // + Hard delete (use sparingly)
-//    @Query("DELETE FROM events WHERE eventId = :id")
-//    suspend fun hardDelete(id: String)
-//}

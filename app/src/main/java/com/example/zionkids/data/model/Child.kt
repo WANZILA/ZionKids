@@ -144,6 +144,9 @@ data class Child(
     val isDirty: Boolean = false,
     // Soft-deletes (tombstones) so Room remains source of truth and we can sync deletions.
     val isDeleted: Boolean = false,
+    // Tombstone timestamp: when we deleted this record (used for cleanup after retention)
+    val deletedAt: Timestamp? = null,
+
     // Cheap conflict resolution: prefer higher version (server increments), else newer updatedAt.
     val version: Long = 0L
 ) {

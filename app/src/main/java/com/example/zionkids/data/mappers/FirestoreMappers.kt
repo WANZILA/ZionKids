@@ -88,6 +88,9 @@ fun QuerySnapshot.toEvents(): List<Event> =
 
 /* ======================= DOC -> CHILD ======================= */
 fun DocumentSnapshot.toChildOrNull(): Child? {
+    val isDel = getBoolean("isDeleted") ?: false
+    val delAt = if (isDel) ts("deletedAt") else null
+
     if (data == null) return null
 
     return Child(
@@ -195,7 +198,10 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
 
         // ===== Audit =====
         createdAt = ts("createdAt") ?: Timestamp.now(),
-        updatedAt = ts("updatedAt") ?: Timestamp.now()
+        updatedAt = ts("updatedAt") ?: Timestamp.now(),
+        isDeleted = getBoolean("isDeleted") ?: false,
+        deletedAt = ts("deletedAt"),
+        version   = getLong("version") ?: 0L
     )
 }
 
@@ -204,117 +210,16 @@ fun QuerySnapshot.toChildren(): List<Child> = documents.mapNotNull { it.toChildO
 
 /* ======================= CHILD -> FIRESTORE (FULL) ======================= */
 /** Full map for create/replace. Writes all fields; nullable fields are skipped. */
-//fun Child.toFirestoreMapFull(): Map<String, Any> = buildMap {
-//    // ===== IDs =====
-//    put("childId", childId)
-//
-//    // ===== Basic Info =====
-//    put("profileImg", profileImg)
-//
-//    put("fName", fName)
-//    put("lName", lName)
-//    put("oName", oName)
-//    put("gender", gender)
-//
-//    if (age > 0) put("age", age)
-//
-//    dob?.let { put("dob", it) }
-//    put("dobVerified", dobVerified)
-//
-//    put("street", street)
-//
-//    put("invitedBy", invitedBy.name)
-//    put("invitedByIndividualId", invitedByIndividualId)
-//    put("invitedByTypeOther", invitedByTypeOther)
-//
-//    put("educationPreference", educationPreference.name)
-//
-//    // ===== Background Info =====
-//    leftHomeDate?.let { put("leftHomeDate", it) }
-//    reasonLeftHome?.let { put("reasonLeftHome", it) }
-//    leaveStreetDate?.let { put("leaveStreetDate", it) }
-//
-//    // ===== Education Info =====
-//    put("lastClass", lastClass)
-//    put("previousSchool", previousSchool)
-//    put("reasonLeftSchool", reasonLeftSchool)
-//
-//    // ===== Family Resettlement =====
-//    put("resettlementPreference", resettlementPreference.name)
-//    put("resettlementPreferenceOther", resettlementPreferenceOther)
-//    put("resettled", resettled)
-//    resettlementDate?.let { put("resettlementDate", it) }
-//
-//    put("region", region)
-//    put("district", district)
-//    put("county", county)
-//    put("subCounty", subCounty)
-//    put("parish", parish)
-//    put("village", village)
-//
-//    // ===== Family Members 1 =====
-//    put("memberFName1", memberFName1)
-//    put("memberLName1", memberLName1)
-//    put("relationship1", relationship1.name)
-//    put("telephone1a", telephone1a)
-//    put("telephone1b", telephone1b)
-//
-//    // ===== Family Members 2 =====
-//    put("memberFName2", memberFName2)
-//    put("memberLName2", memberLName2)
-//    put("relationship2", relationship2.name)
-//    put("telephone2a", telephone2a)
-//    put("telephone2b", telephone2b)
-//
-//    // ===== Family Members 3 =====
-//    put("memberFName3", memberFName3)
-//    put("memberLName3", memberLName3)
-//    put("relationship3", relationship3.name)
-//    put("telephone3a", telephone3a)
-//    put("telephone3b", telephone3b)
-//
-//    // ===== Spiritual Info =====
-//    put("acceptedJesus", acceptedJesus.name)
-//    acceptedJesusDate?.let { put("acceptedJesusDate", it) }
-//    put("whoPrayed", whoPrayed.name)
-//    put("whoPrayedOther", whoPrayedOther)
-//    put("whoPrayedId", whoPrayedId)
-//    put("outcome", outcome)
-//    put("classGroup", classGroup.name)
-//    put("generalComments", generalComments)
-//
-//    // ===== Program statuses =====
-//    put("registrationStatus", registrationStatus.name)
-//    put("graduated", graduated.name)
-//
-//    // ===== Sponsorship / Flags =====
-//    put("sponsoredForEducation", sponsoredForEducation)
-//    put("sponsorId", sponsorId)
-//    put("sponsorFName", sponsorFName)
-//    put("sponsorLName", sponsorLName)
-//    put("partnerTelephone1", partnerTelephone1)
-//    put("partnerTelephone2", partnerTelephone2)
-//    put("sponsorEmail", sponsorEmail)
-//    put("sponsorNotes", sponsorNotes)
-//
-//    // ===== Audit =====
-//    put("createdAt", createdAt)
-//    put("updatedAt", updatedAt)
-//}
+
 /** Build a PATCH map (only non-null / non-blank fields) for merge updates. */
 fun Event.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     fun putIfNotBlank(key: String, v: String?) {
         if (!v.isNullOrBlank()) put(key, v)
     }
 
-    fun putIfNotNull(key: String, v: Any?) {
-        if (v != null) put(key, v)
-    }
-
     // ===== Basic Info =====
     putIfNotBlank("eventId", eventId)
-    putIfNotBlank("title", title)
-    putIfNotBlank("eventId", eventId)
+    putIfNotBlank("eventParentId", eventParentId)
     putIfNotBlank("title", title)
     put("eventDate", eventDate)
 
@@ -336,7 +241,64 @@ fun Event.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     put("version", version)
 
     // Timestamps
+    // createdAt should exist (best set once; but we at least include it)
+    put("createdAt", createdAt)
     put("updatedAt", Timestamp.now())
+
+    // Tombstone timestamp only when deleted
+    if (isDeleted) {
+        put("deletedAt", deletedAt ?: Timestamp.now())
+    } else {
+        // optional: explicitly clear deletedAt on undelete if you support undelete
+        // put("deletedAt", null) // NOTE: null handling depends on your SetOptions/merge behavior
+    }
+}
+
+fun DocumentSnapshot.toEventOrNull(): Event? {
+    if (data == null) return null
+    fun ts(key: String): Timestamp? = getTimestamp(key)
+
+    val statusRaw = getString("eventStatus") ?: getString("status")
+    val status = runCatching {
+        if (statusRaw.isNullOrBlank()) EventStatus.SCHEDULED else EventStatus.valueOf(statusRaw)
+    }.getOrDefault(EventStatus.SCHEDULED)
+
+    val isDel = getBoolean("isDeleted") ?: false
+    val delAt = if (isDel) ts("deletedAt") else null
+
+    // ✅ If updatedAt is missing, this doc is unsafe for delta sync ordering.
+    // Return null so it doesn't poison Room/cursor (and you’ll see it in failedIds logs).
+    val updatedAt = ts("updatedAt") ?: return null
+
+    return Event(
+        eventId = getString("eventId") ?: id,
+        eventParentId = getString("eventParentId") ?: "",
+        title = getString("title") ?: "",
+
+        // keep as-is OR make strict too
+        eventDate = ts("eventDate") ?: Timestamp.now(),
+
+        teamName = getString("teamName") ?: "",
+        teamLeaderNames = getString("teamLeaderNames") ?: "",
+        leaderTelephone1 = getString("leaderTelephone1") ?: "",
+        leaderTelephone2 = getString("leaderTelephone2") ?: "",
+        leaderEmail = getString("leaderEmail") ?: "",
+        location = getString("location") ?: "",
+
+        eventStatus = status,
+        notes = getString("notes") ?: "",
+        adminId = getString("adminId") ?: "",
+
+        // ✅ createdAt: if missing, keep something stable (could be updatedAt)
+        createdAt = ts("createdAt") ?: updatedAt,
+        updatedAt = updatedAt,
+
+        isDeleted = isDel,
+        deletedAt = delAt,
+
+        isDirty = false,
+        version = getLong("version") ?: 0L
+    )
 }
 
 /** Build a PATCH map (only non-null / non-blank fields) for merge updates. */
@@ -439,6 +401,11 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     putIfNotBlank("sponsorEmail", partnerEmail)
     putIfNotBlank("sponsorNotes", partnerNotes)
 
+    // Tombstone strategy: ONLY write delete fields when deleted.
+    if (isDeleted) {
+        put("isDeleted", true)
+        put("deletedAt", deletedAt ?: Timestamp.now())
+    }
     // ===== Audit =====
     put("createdAt", createdAt)
     put("updatedAt", Timestamp.now())
@@ -508,42 +475,84 @@ fun QuerySnapshot.toUsers(): List<UserProfile> =
 
 /* ======================Attendance ================= */
 
-fun Attendance.toFirestoreMapPatch(): Map<String, Any?> = buildMap {
+fun Attendance.toFirestoreMapPatch(): Map<String, Any> = buildMap {
+    fun putIfNotBlank(key: String, v: String?) {
+        if (!v.isNullOrBlank()) put(key, v)
+    }
+    fun putIfNotNull(key: String, v: Any?) {
+        if (v != null) put(key, v)
+    }
+
     put("attendanceId", attendanceId)
     put("childId", childId)
     put("eventId", eventId)
-    put("adminId", adminId)
+    putIfNotBlank("adminId", adminId)
+
     put("status", status.name)
-//    put("notes", notes.takeIf { it.isNotBlank() })
+
+    // Keep notes stable (you can switch back to omit-if-blank later if you want)
     put("notes", notes.orEmpty())
-    // do NOT include isDirty in remote writes
-    put("isDeleted", isDeleted.takeIf { it })     // only write true; omit when false
+
+    // Tombstone strategy: ONLY write delete fields when deleted.
+    if (isDeleted) {
+        put("isDeleted", true)
+        put("deletedAt", deletedAt ?: Timestamp.now())
+    }
+
     put("version", version)
-    // createdAt handled conditionally in worker (only on first publish)
-    put("updatedAt", updatedAt)                   // worker will override with server-side 'now'
-    put("checkedAt", checkedAt)
+
+    // Let the WORKER set updatedAt = now (single source of "now").
+    // put("updatedAt", ...)  <-- intentionally omitted here
+
+    putIfNotNull("checkedAt", checkedAt)
+}
+
+// com.example.zionkids.data.mappers (same file where toChildOrNull lives)
+
+
+fun DocumentSnapshot.toAttendanceOrNull(): Attendance? {
+    if (data == null) return null
+
+    fun ts(key: String): Timestamp? = getTimestamp(key)
+
+    val statusRaw = getString("status")
+    val status = runCatching {
+        if (statusRaw.isNullOrBlank()) AttendanceStatus.ABSENT else AttendanceStatus.valueOf(statusRaw)
+    }.getOrDefault(AttendanceStatus.ABSENT)
+
+    val isDel = getBoolean("isDeleted") ?: false
+    val delAt = if (isDel) (ts("deletedAt")) else null
+
+    return Attendance(
+        attendanceId = getString("attendanceId") ?: id,
+        childId = getString("childId") ?: "",
+        eventId = getString("eventId") ?: "",
+        adminId = getString("adminId") ?: "",
+        status = status,
+        notes = getString("notes") ?: "",
+
+        // tombstone
+        isDeleted = isDel,
+        deletedAt = delAt,
+
+        // from server => always clean
+        isDirty = false,
+        version = getLong("version") ?: 0L,
+
+        createdAt = ts("createdAt") ?: Timestamp.now(),
+        updatedAt = ts("updatedAt") ?: Timestamp.now(),
+
+        // IMPORTANT: don’t default to now on pull; keep null if missing
+        checkedAt = ts("checkedAt")
+    )
 }
 
 /* ======================= ROLE PARSING ======================= */
 
-//private fun Any?.toRoleList(): List<AssignedRole> = when (this) {
-//    null -> listOf(AssignedRole.VOLUNTEER)
-//
-//    // roles: "ADMIN"
-//    is String -> listOfNotNull(this.toRoleOrNull())
-//
-//    // roles: ["ADMIN","VOLUNTEER"] or [Role.ADMIN, Role.VOLUNTEER]
-//    is Collection<*> -> this.mapNotNull { item ->
-//        when (item) {
-//            is String -> item.toRoleOrNull()
-//            is AssignedRole -> item
-//            else -> null
-//        }
-//    }.ifEmpty { listOf(AssignedRole.VOLUNTEER) }
-//
-//    // Unknown type
-//    else -> listOf(AssignedRole.VOLUNTEER)
-//}
+/* ======================= ROLE PARSING ======================= */
+
+
+/* ======================= ROLE PARSING ======================= */
 
 private fun String.toRoleOrNull(): AssignedRole? = runCatching {
     // Normalize common variants; keep your current enum spelling "LEAD"

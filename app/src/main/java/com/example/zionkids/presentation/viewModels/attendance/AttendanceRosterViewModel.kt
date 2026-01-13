@@ -20,6 +20,7 @@ import javax.inject.Inject
 // /// CHANGED: add Paging imports (keeps your Paging hooks compiling)
 import androidx.paging.PagingData // /// CHANGED
 import androidx.paging.cachedIn  // /// CHANGED
+import com.example.zionkids.core.Utils.GenerateId
 
 data class RosterChild(
     val child: Child,
@@ -168,9 +169,10 @@ class AttendanceRosterViewModel @Inject constructor(
     /** Toggle PRESENT/ABSENT — Timestamp throughout ✅ */
     fun toggleAttendance(eventId: String, rosterChild: RosterChild, adminId: String) {
         val nowTs = Timestamp.now()
+        val attendanceId = GenerateId.generateId("attendance")
         val newStatus = if (rosterChild.present) AttendanceStatus.ABSENT else AttendanceStatus.PRESENT
         val att = Attendance(
-            attendanceId = "${eventId}_${rosterChild.child.childId}",
+            attendanceId = attendanceId,
             childId = rosterChild.child.childId,
             eventId = eventId,
             adminId = adminId,

@@ -7,15 +7,10 @@ import android.content.Context
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 //import com.example.zionkids.core.sync.CascadeDelete
-import com.example.zionkids.core.sync.ChildrenCascadeDeleteWorker
 import com.example.zionkids.core.sync.ChildrenSyncScheduler
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
+import com.example.zionkids.data.local.dao.AttendanceDao
 //import com.example.zionkids.core.sync.ChildrenCascadeDeleteWorker
 import com.example.zionkids.data.model.Child
 //import com.example.zionkids.data.model.ChildDao
@@ -63,16 +58,21 @@ interface OfflineChildrenRepository {
     suspend fun markDirty(id: String)
 
     // /// CHANGED: new API — hard delete locally + remote cascade via Worker
-    suspend fun hardDeleteCascade(childId: String)
+//    suspend fun hardDeleteCascade(childId: String)
 
     //uses paging 3 and count the query on search
     fun pagedNotGraduated(needle: String, pageSize: Int = 50): Flow<PagingData<Child>>
     fun countNotGraduated(needle: String): Flow<Int>
+
+    // Replace (or add new)
+    suspend fun deleteChildCascade(childId: String)
+
 }
 //suspend fun KpiDao.inc(key: String, delta: Long) = bump(key, delta)
 @Singleton
 class OfflineChildrenRepositoryImpl @Inject constructor(
     private val childDao: ChildDao,
+    private val attendanceDao: AttendanceDao,
     private val kpiDao: KpiDao,
     @ApplicationContext private val appContext: Context
 ) : OfflineChildrenRepository {
@@ -105,6 +105,7 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
 
         // ✅ and persist the exact state we counted
         childDao.upsert(next)
+        ChildrenSyncScheduler.enqueuePushNow(appContext)
 
         return id
     }
@@ -197,61 +198,61 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
 //        childDao.hardDelete(childId)
 //        CascadeDelete.child(appContext, childId)
 //    }
-    override suspend fun hardDeleteCascade(childId: String) {
-        require(childId.isNotBlank()) { "childId is blank" }
-        // /// CHANGED: fetch for KPI deltas before hard delete
-        val prev = childDao.getById(childId)
-        // /// CHANGED: reflect deletion in KPIs
-        prev?.let { updateKpis(prev = it, next = it.copy(isDeleted = true), isDelete = true) }
-
-        // OfflineChildrenRepositoryImpl.hardDeleteCascade(...)
-        // OfflineChildrenRepositoryImpl.hardDeleteCascade(...)
-        childDao.hardDelete(childId)
-
-        val input = androidx.work.Data.Builder()
-            .putString(ChildrenCascadeDeleteWorker.KEY_CHILD_ID, childId)
-            .build()
-
-        val req = androidx.work.OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
-            .setInputData(input)
-            .setConstraints(
-                androidx.work.Constraints.Builder()
-                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                    .build()
-            )
-            // optional, helps run quicker in foreground-like priority
-            //.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .addTag("cascade_delete")
-            .build()
-
-        androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
-            "children_cascade_delete_$childId",
-            androidx.work.ExistingWorkPolicy.REPLACE,
-            req
-        )
-
-//        val input = Data.Builder()
+//    override suspend fun hardDeleteCascade(childId: String) {
+//        require(childId.isNotBlank()) { "childId is blank" }
+//        // /// CHANGED: fetch for KPI deltas before hard delete
+//        val prev = childDao.getById(childId)
+//        // /// CHANGED: reflect deletion in KPIs
+//        prev?.let { updateKpis(prev = it, next = it.copy(isDeleted = true), isDelete = true) }
+//
+//        // OfflineChildrenRepositoryImpl.hardDeleteCascade(...)
+//        // OfflineChildrenRepositoryImpl.hardDeleteCascade(...)
+//        childDao.hardDelete(childId)
+//
+//        val input = androidx.work.Data.Builder()
 //            .putString(ChildrenCascadeDeleteWorker.KEY_CHILD_ID, childId)
 //            .build()
 //
-//        val req = OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
+//        val req = androidx.work.OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
 //            .setInputData(input)
 //            .setConstraints(
-//                Constraints.Builder()
-//                    .setRequiredNetworkType(NetworkType.CONNECTED)
+//                androidx.work.Constraints.Builder()
+//                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
 //                    .build()
 //            )
+//            // optional, helps run quicker in foreground-like priority
+//            //.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+//            .addTag("cascade_delete")
 //            .build()
 //
-//        WorkManager.getInstance(appContext).enqueueUniqueWork(
+//        androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
 //            "children_cascade_delete_$childId",
-//            ExistingWorkPolicy.REPLACE,
+//            androidx.work.ExistingWorkPolicy.REPLACE,
 //            req
 //        )
-
-//        childDao.hardDelete(childId)
-//        ChildrenSyncScheduler.enqueueCascadeDelete(appContext, childId)
-    }
+//
+////        val input = Data.Builder()
+////            .putString(ChildrenCascadeDeleteWorker.KEY_CHILD_ID, childId)
+////            .build()
+////
+////        val req = OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
+////            .setInputData(input)
+////            .setConstraints(
+////                Constraints.Builder()
+////                    .setRequiredNetworkType(NetworkType.CONNECTED)
+////                    .build()
+////            )
+////            .build()
+////
+////        WorkManager.getInstance(appContext).enqueueUniqueWork(
+////            "children_cascade_delete_$childId",
+////            ExistingWorkPolicy.REPLACE,
+////            req
+////        )
+//
+////        childDao.hardDelete(childId)
+////        ChildrenSyncScheduler.enqueueCascadeDelete(appContext, childId)
+//    }
 
     // ---------- KPI helpers (no full-table scans) ----------
     // We count ACTIVE (not deleted) rows, to mirror your UI logic.
@@ -348,6 +349,32 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
 
     override fun countNotGraduated(needle: String): Flow<Int> =
         childDao.countNotGraduatedByName(needle.lowercase())
+
+    override suspend fun deleteChildCascade(childId: String) {
+        require(childId.isNotBlank()) { "childId is blank" }
+
+        val now = Timestamp.now()
+
+        // Plain-English: 1) mark the child as deleted (tombstone) locally
+        val prev = childDao.getById(childId)
+        childDao.softDelete(childId, now)
+
+        // Plain-English: 2) mark related tables (attendances) as deleted too
+        attendanceDao.softDeleteByChildId(childId, now)
+
+        // Plain-English: KPI update (child removed from active lists)
+        prev?.let { updateKpis(prev = it, next = it.copy(isDeleted = true), isDelete = true) }
+
+        // Plain-English: 3) queue sync workers so Firestore gets the tombstones
+        // (use whatever schedulers you already have for children + attendances)
+//        ChildrenSyncScheduler.enqueuePushNow(appContext)
+//        // TODO: if you have AttendanceSyncScheduler, call it too:
+//         AttendanceSyncScheduler.enqueuePushNow(appContext)
+        SyncCoordinatorScheduler.enqueuePushAllNow(appContext)
+        // Plain-English: 4) optional: queue remote cascade worker to ensure server side is consistent
+        // (useful if some attendances were never on this device)
+//        ChildrenSyncScheduler.enqueueCascadeDelete(appContext, childId)
+    }
 
 //    override suspend fun hardDeleteCascade(childId: String) {
 //        require(childId.isNotBlank()) { "childId is blank" }

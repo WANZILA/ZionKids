@@ -19,6 +19,7 @@ import com.example.core.utils.FormValidatorUtil
 import com.example.zionkids.core.Utils.GenerateId
 import com.example.zionkids.core.Utils.picker.PickerFeature
 import com.example.zionkids.core.Utils.picker.PickerOption
+import com.example.zionkids.core.sync.ChildrenSyncScheduler
 import com.example.zionkids.data.model.*
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
 import com.example.zionkids.domain.repositories.online.StreetsRepository
@@ -325,47 +326,8 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         runCatching { repo.upsert(child, isNew = ui.isNew) }
             .onSuccess {
                 ui = ui.copy(saving = false, childId = id, isNew = false)
-//                CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-//                    ChildrenSyncScheduler.enqueueNow(appContext)
-//                }
-//                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
-//                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-//                    .build()
-//
-//                work.enqueueUniqueWork(
-//                    "children-push-once",
-//                    ExistingWorkPolicy.APPEND_OR_REPLACE,
-//                    req
-//                )
-                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
-                    )
-                    .build()
+//                ChildrenSyncScheduler.enqueuePushNow(appContext)
 
-                WorkManager.getInstance(appContext).enqueueUniqueWork(
-//                    "children-push-once",
-//                    ExistingWorkPolicy.REPLACE,
-                    "children_sync_queue",
-                    ExistingWorkPolicy.APPEND,
-                    req
-                )
-
-//                val req = OneTimeWorkRequestBuilder<ChildrenSyncWorker>()
-//                    .setConstraints(
-//                        Constraints.Builder()
-//                            .setRequiredNetworkType(NetworkType.CONNECTED)
-//                            .build()
-//                    )
-//                    .build()
-//
-//                work.enqueueUniqueWork(
-//                    /* uniqueName = */ "children-push-once",
-//                    /* policy     = */ ExistingWorkPolicy.REPLACE, // don’t append into a stuck chain
-//                    /* request    = */ req
-//                )
                 _events.trySend(ChildFormEvent.Saved(id))
             }
             .onFailure {

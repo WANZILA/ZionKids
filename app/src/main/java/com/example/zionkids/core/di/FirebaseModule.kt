@@ -2,6 +2,7 @@
 package com.example.zionkids.core.di
 
 import android.content.Context
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -140,6 +141,9 @@ object FirestoreModule {
     fun provideStreetCollection(db: FirebaseFirestore): CollectionReference =
         db.collection("streets")
 
+//    @Provides
+//    @Singleton
+//    fun provideSyncCoordinatorScheduler(): SyncCoordinatorScheduler = SyncCoordinatorScheduler
 
 
 }

@@ -14,10 +14,13 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.example.zionkids.core.Utils.GenerateId
-import com.example.zionkids.core.sync.ChildrenCascadeDeleteWorker
-import com.example.zionkids.core.sync.event.EventCascadeDeleteWorker
+import com.example.zionkids.core.sync.attendance.AttendanceSyncScheduler
+import com.example.zionkids.core.sync.event.EventSyncScheduler
+import com.example.zionkids.data.local.dao.AttendanceDao
+//import com.example.zionkids.core.sync.event.EventCascadeDeleteWorker
 import com.example.zionkids.data.local.dao.EventDao
 import com.example.zionkids.data.local.dao.KpiDao
+import com.example.zionkids.data.model.Attendance
 import com.example.zionkids.data.model.Event
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +56,7 @@ interface OfflineEventsRepository {
 @Singleton
 class OfflineEventsRepositoryImpl @Inject constructor(
     private val eventDao: EventDao,
+    private val attendanceDao: AttendanceDao,
     private val kpiDao: KpiDao,
     @dagger.hilt.android.qualifiers.ApplicationContext
     private val appContext: android.content.Context
@@ -114,6 +118,29 @@ class OfflineEventsRepositoryImpl @Inject constructor(
     override suspend fun getEventFast(id: String): Event? =
         eventDao.getOnce(id)
 
+    override suspend fun deleteEventAndAttendances(eventId: String) {
+        require(eventId.isNotBlank()) { "eventId is blank" }
+
+        val now = Timestamp.now()
+
+        // Plain-English: 1) mark the event as deleted (tombstone) locally
+        val prev = eventDao.getOnce(eventId)
+        eventDao.softDeleteByEventId(eventId, now)
+
+        // Plain-English: 2) mark related tables (attendances) as deleted too
+        attendanceDao.softDeleteByEventId(eventId, now)
+
+        // Plain-English: KPI update (optional)
+        // If you want symmetric KPI decrements, do it here using `prev`.
+        // prev?.let { ... }
+
+        // Plain-English: 3) queue sync workers so Firestore gets the tombstones
+        EventSyncScheduler.enqueuePushNow(appContext)
+        AttendanceSyncScheduler.enqueuePushNow(appContext)
+
+        // Plain-English: 4) optional: remote cascade worker (only if you build one later)
+        // EventSyncScheduler.enqueueCascadeDelete(appContext, eventId)
+    }
     // /// CHANGED: Paging 3 hook (UI calls collectAsLazyPagingItems())
     override fun pagedActive(): Flow<PagingData<Event>> =
         Pager(
@@ -125,42 +152,6 @@ class OfflineEventsRepositoryImpl @Inject constructor(
             ),
             pagingSourceFactory = { eventDao.pagingActive() }
         ).flow
-
-    override suspend fun deleteEventAndAttendances(eventId: String) {
-        require(eventId.isNotBlank()) { "EventId is blank" }
-
-        eventDao.hardDelete(eventId)
-
-        val input = androidx.work.Data.Builder()
-            .putString(EventCascadeDeleteWorker.KEY_EVENT_ID, eventId)
-            .build()
-
-        val req = androidx.work.OneTimeWorkRequestBuilder<EventCascadeDeleteWorker>()
-            .setInputData(input)
-            .setConstraints(
-                androidx.work.Constraints.Builder()
-                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                    .build()
-            )
-            // optional, helps run quicker in foreground-like priority
-            //.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .addTag("cascade_delete")
-            .build()
-
-        androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
-            "event_cascade_delete_$eventId",
-            androidx.work.ExistingWorkPolicy.APPEND,
-            req
-        )
-
-        // Decrement counters safely (won’t go negative if you guard externally)
-        kpiDao.ensureKey(KPI_EVENTS_TOTAL)
-        kpiDao.ensureKey(todayKeyUTC())
-        kpiDao.add(KPI_EVENTS_TOTAL, -1)
-        kpiDao.add(todayKeyUTC(), -1)
-
-    }
-
 
     // --- keep other methods unchanged ---
 

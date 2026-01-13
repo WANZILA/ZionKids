@@ -736,14 +736,14 @@ private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
         AppTextField(
             value = uiState.sponsorFName,
             onValueChange = { vm.ui = vm.ui.copy(sponsorFName = it) },
-            label = "Sponsor first name",
+            label = "Partner first name",
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Outlined.Person, null) }
         )
         AppTextField(
             value = uiState.sponsorLName,
             onValueChange = { vm.ui = vm.ui.copy(sponsorLName = it) },
-            label = "Sponsor last name",
+            label = "Partner last name",
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Outlined.Person, null) }
         )
@@ -757,14 +757,14 @@ private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
         AppTextField(
             value = uiState.sponsorEmail,
             onValueChange = { vm.ui = vm.ui.copy(sponsorEmail = it) },
-            label = "Sponsor email",
+            label = "Partner email",
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Outlined.Email, null) }
         )
         AppTextField(
             value = uiState.sponsorNotes,
             onValueChange = vm::onSponsorNotes,
-            label = "Sponsor notes",
+            label = "Partner notes",
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Outlined.EditNote, null) }
         )

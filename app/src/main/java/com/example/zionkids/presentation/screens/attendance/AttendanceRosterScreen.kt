@@ -146,19 +146,19 @@ fun AttendanceRosterScreen(
             )
 
             // /// CHANGED: tiny helper row with live count for current search
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AssistChip(onClick = {}, label = { Text("Matches: $searchCount") })
-                if (total > 0) {
-                    AssistChip(onClick = {}, label = { Text("P: ${visible.count { it.present }}") })
-                    AssistChip(onClick = {}, label = { Text("A: ${visible.size - visible.count { it.present }}") })
-                }
-            }
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 12.dp, vertical = 4.dp),
+//                horizontalArrangement = Arrangement.spacedBy(8.dp),
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+////                AssistChip(onClick = {}, label = { Text("Matches: $searchCount") })
+//                if (total > 0) {
+//                    AssistChip(onClick = {}, label = { Text("P: ${visible.count { it.present }}") })
+//                    AssistChip(onClick = {}, label = { Text("A: ${visible.size - visible.count { it.present }}") })
+//                }
+//            }
 
             // Stats chips (one line, small) — unchanged
             if (total > 0) {

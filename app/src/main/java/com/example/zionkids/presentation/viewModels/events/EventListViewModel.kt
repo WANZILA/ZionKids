@@ -4,6 +4,7 @@
 
 package com.example.zionkids.presentation.viewModels.events
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.model.Event
@@ -21,6 +22,8 @@ import javax.inject.Inject
 // /// CHANGED: Paging imports
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.example.zionkids.core.sync.event.EventSyncScheduler
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 
 data class EventListUiState(
@@ -33,7 +36,8 @@ data class EventListUiState(
 
 @HiltViewModel
 class EventListViewModel @Inject constructor(
-    private val repo: OfflineEventsRepository
+    private val repo: OfflineEventsRepository,
+    @ApplicationContext val appContext: Context,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(EventListUiState())
@@ -100,6 +104,7 @@ class EventListViewModel @Inject constructor(
     }
 
     fun refresh() {
+        EventSyncScheduler.enqueuePullNow(appContext)
         _ui.value = _ui.value.copy(loading = true)
         _ui.value = _ui.value.copy(loading = false)
     }

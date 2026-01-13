@@ -9,6 +9,7 @@ object GenerateId {
             "volunteer" -> "vo"
             "admin" -> "ad"
             "event" -> "ev"
+            "attendance" ->"att"
             "street" ->"stre"
             "technicalSkills" -> "ts"
             "other" -> "ot"

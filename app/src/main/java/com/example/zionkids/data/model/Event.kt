@@ -21,6 +21,7 @@ import com.google.firebase.Timestamp
 )
 data class Event(
     @PrimaryKey val eventId: String = "",
+    val eventParentId: String = "",
     val title: String = "",
     val eventDate: Timestamp = Timestamp.now(),
     val teamName: String = "",
@@ -38,6 +39,7 @@ data class Event(
     val isDirty: Boolean = false,
     // Soft-deletes (tombstones) so Room remains source of truth and we can sync deletions.
     val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
     // Cheap conflict resolution: prefer higher version (server increments), else newer updatedAt.
     val version: Long = 0L
 )

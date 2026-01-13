@@ -1,9 +1,4 @@
-// <app/src/main/java/com/example/zionkids/core/sync/event/EventSyncWorker.kt>
-// /// CHANGED: Added Timber logs (start/end, counts, samples, phase timings) without changing logic.
-
 package com.example.zionkids.core.sync.event
-
-import com.example.zionkids.domain.sync.ChildrenSyncWorker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
@@ -12,11 +7,10 @@ import androidx.work.WorkerParameters
 import com.example.zionkids.core.di.EventsRef
 import com.example.zionkids.data.local.dao.EventDao
 import com.example.zionkids.data.mappers.toFirestoreMapPatch
-//import com.example.zionkids.domain.sync.ChildrenSyncWorker.WorkerDeps
+import com.example.zionkids.data.model.Event
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
-// import com.google.firebase.firestore.Query // /// CHANGED: not used
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
 import dagger.assisted.Assisted
@@ -25,11 +19,12 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import timber.log.Timber
-import kotlin.system.measureTimeMillis // /// CHANGED: for timing logs
+import kotlin.system.measureTimeMillis
 
-// EventSyncWorker.kt
 @HiltWorker
 class EventSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
@@ -37,11 +32,12 @@ class EventSyncWorker @AssistedInject constructor(
     @EventsRef private val eventRef: CollectionReference,
     private val eventDao: EventDao,
     private val firestore: FirebaseFirestore
-//    @Assisted appContext: Context,
-//    @Assisted params: WorkerParameters,
-//    @EventsRef private val eventRef: CollectionReference,
-//    private val eventDao: EventDao
 ) : CoroutineWorker(appContext, params) {
+
+    companion object {
+        private const val TAG = "EventSyncWorker"
+        private const val MAX_BATCH = 500
+    }
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
@@ -56,69 +52,166 @@ class EventSyncWorker @AssistedInject constructor(
         params,
         EntryPointAccessors.fromApplication(appContext, WorkerEvents::class.java).eventRef(),
         EntryPointAccessors.fromApplication(appContext, WorkerEvents::class.java).eventDao(),
-                EntryPointAccessors.fromApplication(appContext, ChildrenSyncWorker.WorkerDeps::class.java).firestore()
+        EntryPointAccessors.fromApplication(appContext, WorkerEvents::class.java).firestore()
     )
 
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val totalMs = measureTimeMillis {
+            Timber.i("%s: start attempt=%d", TAG, runAttemptCount)
+        }
 
-    override suspend fun doWork(): Result = try {
-        Timber.i("EventSyncWorker: starting…")
-        val dirty = eventDao.loadDirtyBatch(450)
-        Timber.i("EventSyncWorker: loaded dirty=%d", dirty.size)
+        try {
+            // 1) Collect dirty events
+            val dirty = eventDao.loadDirtyBatch(limit = MAX_BATCH)
+            Timber.i("%s: loaded dirty=%d", TAG, dirty.size)
+            if (dirty.isEmpty()) return@withContext Result.success()
 
-        if (dirty.isEmpty()) {
-            Timber.i("EventSyncWorker: nothing to push, success")
-            Result.success()
-        } else {
-            Timber.i(
-                "EventSyncWorker: writing to collection='%s' (proj=%s, app=%s)",
-                eventRef.path,
-                eventRef.firestore.app.options.projectId,
-                eventRef.firestore.app.name
-            )
+            val now = Timestamp.now()
 
-            val now = com.google.firebase.Timestamp.now()
+            val toPush = mutableListOf<Event>()
+            val conflictRemotes = mutableListOf<Event>()
 
-            // 2) PRE-FETCH existence OUTSIDE the batch (legal)
-            val existsMap = mutableMapOf<String, Boolean>()
-            for (ev in dirty) {
-                val snap = eventRef.document(ev.eventId).get(Source.SERVER).await()
-                existsMap[ev.eventId] = snap.exists()
+            // 2) For each dirty local, check remote version+updatedAt from SNAPSHOT fields (avoid defaults)
+            val prefetchMs = measureTimeMillis {
+                for (local in dirty) {
+                    if (local.eventId.isBlank()) {
+                        Timber.w("%s skipping dirty row with blank eventId", TAG)
+                        continue
+                    }
+
+                    val docRef = eventRef.document(local.eventId)
+
+                    // Force server read so we don't compare against stale cache
+                    val snap = docRef.get(Source.SERVER).await()
+
+                    if (!snap.exists()) {
+                        // No remote doc yet -> safe to push local
+                        toPush += local
+                        continue
+                    }
+
+                    val remoteVersion = snap.getLong("version")
+                    val remoteUpdatedAt = snap.getTimestamp("updatedAt")
+
+                    // If remote is missing required fields, treat LOCAL as winner (but log loudly)
+                    if (remoteVersion == null || remoteUpdatedAt == null) {
+                        Timber.w(
+                            "%s remote missing fields eventId=%s remoteVersion=%s remoteUpdatedAt=%s; pushing local",
+                            TAG, local.eventId, remoteVersion, remoteUpdatedAt
+                        )
+                        toPush += local
+                        continue
+                    }
+
+                    val localVersion = local.version
+                    val localUpdatedAt = local.updatedAt
+
+                    // Server-wins rule:
+                    // 1) higher version wins
+                    // 2) if version ties, newer updatedAt wins
+                    val serverWins =
+                        (remoteVersion > localVersion) ||
+                                (remoteVersion == localVersion &&
+                                        remoteUpdatedAt.toDate().time > localUpdatedAt.toDate().time)
+
+                    if (serverWins) {
+                        Timber.d(
+                            "%s server-wins eventId=%s (remote.version=%d local.version=%d) (remote.updatedAt=%s local.updatedAt=%s)",
+                            TAG, local.eventId, remoteVersion, localVersion, remoteUpdatedAt, localUpdatedAt
+                        )
+
+                        val remoteObj = snap.toObject(Event::class.java)
+                        if (remoteObj != null) {
+                            // IMPORTANT: enforce snapshot fields into the object (avoid defaults)
+                            conflictRemotes += remoteObj.copy(
+                                eventId = remoteObj.eventId.ifBlank { local.eventId },
+                                version = remoteVersion,
+                                updatedAt = remoteUpdatedAt,
+                                isDirty = false
+                            )
+                        } else {
+                            // If remote can't parse, do NOT overwrite local; keep it dirty and retry later
+                            Timber.w("%s remote parse failed eventId=%s; leaving local dirty (will retry)", TAG, local.eventId)
+                        }
+                    } else {
+                        toPush += local
+                    }
+                }
             }
 
-//            val remoteSnap = eventRef.document(ev.eventId).get().await()
-            eventRef.firestore.runBatch { b ->
-                dirty.forEach { ev ->
-                    val doc = eventRef.document(ev.eventId)
-//                    val remoteSnap = eventRef.document(ev.eventId).get().await()
-                    val patch = ev.toFirestoreMapPatch().toMutableMap().apply {
-                        this["eventId"]   = ev.eventId
-                        this["updatedAt"] = now
-                        this["version"]   = ev.version
-                        if (existsMap[ev.eventId] == false && ev.createdAt != null) {
-                            this["createdAt"] = ev.createdAt // only on first publish
-                        }
-//                        if (!remoteSnap.exists() && ev.createdAt != null) this["createdAt"] = ev.createdAt
-                        if (ev.isDeleted) this["isDeleted"] = true
-                    }
-                    if (ev.isDeleted) b.delete(doc) else b.set(doc, patch, SetOptions.merge())
+            Timber.i(
+                "%s: prefetch done toPush=%d conflicts=%d (%dms)",
+                TAG, toPush.size, conflictRemotes.size, prefetchMs
+            )
+
+            // 3) Apply server-wins conflicts into Room (clean)
+            if (conflictRemotes.isNotEmpty()) {
+                val conflictUpsertMs = measureTimeMillis {
+                    eventDao.upsertAll(conflictRemotes)
                 }
-            }.await()
-            val checkId = dirty.first().eventId
-            val snap = eventRef.document(checkId).get(Source.SERVER).await()
-            Timber.i("EventSyncWorker: server check id=%s exists=%s dataKeys=%s",
-                checkId, snap.exists(), snap.data?.keys?.joinToString(","))
+                Timber.i("%s: applied conflicts into Room=%d (%dms)", TAG, conflictRemotes.size, conflictUpsertMs)
+            }
 
-            Timber.i("EventSyncWorker: batch write OK (ops=%d)", dirty.size)
+            // 4) Push safe locals to Firestore
+            if (toPush.isNotEmpty()) {
+                val pushMs = measureTimeMillis {
+                    firestore.runBatch { b ->
+                        toPush.forEach { ev ->
+                            val docRef = eventRef.document(ev.eventId)
 
-            val maxVersion = dirty.maxOf { it.version }
-            eventDao.markBatchPushed(dirty.map { it.eventId }, newVersion = maxVersion, newUpdatedAt = now)
-            Timber.i("EventSyncWorker: marked clean (ids=%s)", dirty.joinToString { it.eventId })
+                            // We bump version ON PUSH (remote authoritative), then reflect it back into Room after success
+                            val nextVersion = ev.version + 1
 
+                            val toRemote = ev.copy(
+                                updatedAt = now,
+                                version = nextVersion
+                            )
+
+                            val patch = toRemote.toFirestoreMapPatch().toMutableMap().apply {
+                                // Enforce worker-consistent values (override mapper defaults)
+                                this["eventId"] = toRemote.eventId
+                                this["updatedAt"] = now
+                                this["version"] = nextVersion
+
+                                // Tombstones as docs (no delete)
+                                this["isDeleted"] = toRemote.isDeleted
+                                if (toRemote.isDeleted) {
+                                    this["deletedAt"] = (toRemote.deletedAt ?: now)
+                                }
+                            }
+
+                            b.set(docRef, patch, SetOptions.merge())
+                        }
+                    }.await()
+                }
+
+                Timber.i("%s: pushed=%d (%dms)", TAG, toPush.size, pushMs)
+
+                // 5) Mark pushed rows clean in Room AND bump local version to match remote (+1)
+                val pushedIds = toPush.map { it.eventId }
+                if (pushedIds.isNotEmpty()) {
+                    val markMs = measureTimeMillis {
+                        eventDao.markBatchPushed(
+                            ids = pushedIds,
+                            newUpdatedAt = now
+                        )
+                    }
+                    Timber.i("%s: marked clean ids=%d (+1 version) (%dms)", TAG, pushedIds.size, markMs)
+                }
+
+                Timber.d("%s: pushed=%d (dirty=%d) conflicts=%d", TAG, toPush.size, dirty.size, conflictRemotes.size)
+            } else {
+                Timber.d(
+                    "%s: nothing to push after conflict checks (dirty=%d) conflicts=%d",
+                    TAG, dirty.size, conflictRemotes.size
+                )
+            }
+
+            Timber.i("%s: success totalMs~%d", TAG, totalMs)
             Result.success()
+        } catch (t: Throwable) {
+            Timber.e(t, "%s failed; will retry.", TAG)
+            Result.retry()
         }
-    } catch (t: Throwable) {
-        Timber.e(t, "EventSyncWorker failed")
-        Result.retry()
     }
-
 }

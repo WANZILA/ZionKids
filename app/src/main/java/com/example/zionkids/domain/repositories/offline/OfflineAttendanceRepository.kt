@@ -3,6 +3,7 @@ package com.example.zionkids.domain.repositories.offline
 
 import android.content.Context
 import com.example.zionkids.core.di.AttendanceRef
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,7 +16,7 @@ import com.example.zionkids.data.model.Attendance
 import com.example.zionkids.data.model.AttendanceStatus
 import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.local.dao.AttendanceDao
-import com.example.zionkids.core.sync.attendance.AttendanceSyncScheduler // call enqueueNow after local writes
+import com.example.zionkids.core.sync.attendance.AttendanceSyncScheduler // call enqueuePushNow after local writes
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +73,7 @@ interface OfflineAttendanceRepository {
  * Offline-first implementation:
  * - Reads come from Room.
  * - Writes go to Room (markDirty + version bump); worker will push.
- * - After any local change, we nudge AttendanceSyncScheduler.enqueueNow().
+ * - After any local change, we nudge AttendanceSyncScheduler.enqueuePushNow().
  *
  * DAO expectations (mirror your EventDao patterns):
  *   - suspend fun upsert(a: Attendance)
@@ -120,7 +121,7 @@ class OfflineAttendanceRepositoryImpl @Inject constructor(
         )
 
         dao.upsert(toSave)
-        AttendanceSyncScheduler.enqueueNow(appContext) // 🚀 push soon
+        AttendanceSyncScheduler.enqueuePushNow(appContext) // 🚀 push soon
         return id
     }
 
@@ -146,7 +147,7 @@ class OfflineAttendanceRepositoryImpl @Inject constructor(
 //            // Here we assume suspend; most app code uses the suspend path primarily.
 //            // noop: encourage callers to use suspend upsertAttendance(...)
 //        } finally {
-//            AttendanceSyncScheduler.enqueueNow(appContext)
+//            AttendanceSyncScheduler.enqueuePushNow(appContext)
 //        }
 //    }
 
@@ -168,7 +169,8 @@ class OfflineAttendanceRepositoryImpl @Inject constructor(
             dao.upsert(toSave)
             val roundTrip = dao.getOnce(id)
             Timber.i("ATT/READBACK ← id=%s status=%s version=%d", id, roundTrip?.status, roundTrip?.version ?: -1)
-            AttendanceSyncScheduler.enqueueNow(appContext)
+//            AttendanceSyncScheduler.enqueuePushNow(appContext)
+            SyncCoordinatorScheduler.enqueuePushAllNow(appContext)
         }
     }
 
@@ -240,7 +242,7 @@ class OfflineAttendanceRepositoryImpl @Inject constructor(
             if (rows.isNotEmpty()) {
                 // optional: split to smaller chunks if you like
                 dao.upsertAll(rows)
-                AttendanceSyncScheduler.enqueueNow(appContext)
+                AttendanceSyncScheduler.enqueuePushNow(appContext)
             }
         }
 

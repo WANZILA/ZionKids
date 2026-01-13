@@ -3,6 +3,7 @@
 package com.example.zionkids.presentation.screens.migrationToolKit
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,21 +15,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.AndroidViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Timestamp
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import javax.inject.Inject
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.example.zionkids.core.sync.CleanerWorker
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * BackFillPassScreen
@@ -47,14 +54,15 @@ import java.util.Locale
 @Composable
 fun BackFillPassScreen() {
     val app = LocalContext.current.applicationContext as Application
-    val vm: BackFillPassVM = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return BackFillPassVM(app) as T
-            }
-        }
-    )
+//    val vm: BackFillPassVM = viewModel(
+//        factory = object : ViewModelProvider.Factory {
+//            @Suppress("UNCHECKED_CAST")
+//            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+//                return BackFillPassVM(app) as T
+//            }
+//        }
+//    )
+    val vm: BackFillPassVM = hiltViewModel()
 
     val logs: List<String> = vm.logs
     val isRunning by vm.isRunning
@@ -68,6 +76,23 @@ fun BackFillPassScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
+        Button(
+            enabled = !isRunning,
+            onClick = {
+
+                vm.runSyncAndCleanNow()
+            }
+        ) { Text(if (isRunning) "Running…" else "Run Sync and Clean Now") }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Cleaner — state: ${stats.cleanerState.ifBlank { "-" }} | " +
+                    "deleted: children=${stats.deletedChildren}, " +
+                    "attend=${stats.deletedAttendances}, " +
+                    "events=${stats.deletedEvents}, " +
+                    "total=${stats.deletedTotal}"
+        )
+        Spacer(Modifier.height(12.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -121,7 +146,11 @@ fun BackFillPassScreen() {
  *  2) attendances — add missing sync fields
  *  3) events — add missing sync fields
  */
-class BackFillPassVM(app: Application) : AndroidViewModel(app) {
+@HiltViewModel
+class BackFillPassVM @Inject constructor(
+    private val syncCoordinatorScheduler: SyncCoordinatorScheduler,
+    @ApplicationContext private val appContext: Context
+) : ViewModel() {
 
     data class Stats(
         val childrenScanned: Int = 0,
@@ -133,8 +162,21 @@ class BackFillPassVM(app: Application) : AndroidViewModel(app) {
         val eventsScanned: Int = 0,
         val eventsQueued: Int = 0,
         val eventsCommitted: Int = 0,
-        val streetNormalized: Int = 0
+        val streetNormalized: Int = 0,
+
+        // /// CHANGED: Cleaner feedback (Room hard-deletes)
+        val cleanerState: String = "",
+        val deletedChildren: Int = 0,
+        val deletedAttendances: Int = 0,
+        val deletedEvents: Int = 0,
+        val deletedTotal: Int = 0
     )
+    // /// CHANGED: observe Cleaner one-off results
+    private var cleanerObserveJob: Job? = null
+
+    private companion object {
+        private const val UNIQUE_ONE_OFF_CLEANER = "cleaner_now" // matches CleanerScheduler
+    }
 
     private val _logs = mutableStateListOf<String>()
     val logs: List<String> get() = _logs
@@ -176,6 +218,13 @@ class BackFillPassVM(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    fun runSyncAndCleanNow(days: Long = 0) {
+        // /// CHANGED: start observing cleaner output before enqueuing
+        observeCleanerNowWork()
+        syncCoordinatorScheduler.enqueuePushAllNow(appContext, days)
+    }
+
 
     /* ----------------------------- Phases -------------------------------- */
 
@@ -374,6 +423,8 @@ class BackFillPassVM(app: Application) : AndroidViewModel(app) {
         log("Phase 3 done — Events: scanned:$scanned queued:$queued committed:$committed")
     }
 
+
+
     /* ---------------------------- Helpers ------------------------------- */
 
     /** Return only the sync defaults that are currently absent. */
@@ -406,6 +457,54 @@ class BackFillPassVM(app: Application) : AndroidViewModel(app) {
         } ?: return emptyMap()
 
         return if (raw != canonical) mapOf("street" to canonical) else emptyMap()
+    }
+
+    // /// CHANGED: watch CleanerWorker outputData and reflect it in UI
+    private fun observeCleanerNowWork() {
+        if (cleanerObserveJob != null) return
+
+        val wm = WorkManager.getInstance(appContext)
+
+        cleanerObserveJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Requires work-runtime-ktx (Flow extension)
+                wm.getWorkInfosForUniqueWorkFlow(UNIQUE_ONE_OFF_CLEANER).collectLatest { infos ->
+                    val info = infos.firstOrNull()
+                    if (info == null) {
+                        _stats.value = _stats.value.copy(cleanerState = "NOT_SCHEDULED")
+                        return@collectLatest
+                    }
+
+                    val state = info.state
+                    val out = info.outputData
+
+                    val deletedChildren = out.getInt(CleanerWorker.OUT_DELETED_CHILDREN, 0)
+                    val deletedAttendances = out.getInt(CleanerWorker.OUT_DELETED_ATTENDANCES, 0)
+                    val deletedEvents = out.getInt(CleanerWorker.OUT_DELETED_EVENTS, 0)
+                    val deletedTotal = out.getInt(CleanerWorker.OUT_DELETED_TOTAL, 0)
+
+                    _stats.value = _stats.value.copy(
+                        cleanerState = state.name,
+                        deletedChildren = deletedChildren,
+                        deletedAttendances = deletedAttendances,
+                        deletedEvents = deletedEvents,
+                        deletedTotal = deletedTotal
+                    )
+
+                    if (state == WorkInfo.State.SUCCEEDED) {
+                        log("Cleaner SUCCEEDED — deleted children=$deletedChildren attendances=$deletedAttendances events=$deletedEvents total=$deletedTotal")
+                    } else if (state == WorkInfo.State.FAILED) {
+                        log("Cleaner FAILED")
+                    } else if (state == WorkInfo.State.CANCELLED) {
+                        log("Cleaner CANCELLED")
+                    } else {
+                        log("Cleaner state=${state.name}")
+                    }
+                }
+            } catch (t: Throwable) {
+                log("Cleaner observe error: ${t.message ?: t.toString()}")
+            }
+        }
     }
 
     /* ------------------------- Mini BatchWriter -------------------------- */

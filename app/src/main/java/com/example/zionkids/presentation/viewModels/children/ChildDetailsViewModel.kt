@@ -154,7 +154,7 @@ class ChildDetailsViewModel @Inject constructor(
         _ui.value = _ui.value.copy(deleting = true, error = null)
         try {
             // Hard delete locally and enqueue remote cascade
-            repo.hardDeleteCascade(id)
+            repo.deleteChildCascade(id)
 
             _events.trySend(Event.Deleted)
         } catch (e: Exception) {

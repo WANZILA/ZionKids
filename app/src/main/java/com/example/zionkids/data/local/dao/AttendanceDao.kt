@@ -75,13 +75,13 @@ interface AttendanceDao {
     suspend fun loadDirtyBatch(limit: Int): List<Attendance>
 
     @Query("""
-        UPDATE attendances
-        SET isDirty = 0,
-            version  = :newVersion,
-            updatedAt = :newUpdatedAt
-        WHERE attendanceId IN (:ids)
-    """)
-    suspend fun markBatchPushed(ids: List<String>, newVersion: Long, newUpdatedAt: Timestamp)
+    UPDATE attendances SET
+        isDirty = 0,
+        version = version + 1,
+        updatedAt = :newUpdatedAt
+    WHERE attendanceId IN (:ids)
+""")
+    suspend fun markBatchPushed(ids: List<String>, newUpdatedAt: Timestamp)
 
     @Query("""
         UPDATE attendances
@@ -142,4 +142,53 @@ interface AttendanceDao {
 
     @Query("SELECT COUNT(*) FROM children WHERE COALESCE(graduated,0)=0")
     suspend fun countAllNonGraduated(): Int
+
+    // Plain-English: mark all attendances for this child as deleted (tombstones) so other devices can see it.
+    @Query(
+        """
+        UPDATE attendances
+        SET isDeleted = 1,
+            deletedAt = :now,
+            isDirty = 1,
+            updatedAt = :now,
+            version = version + 1
+        WHERE childId = :childId AND isDeleted = 0
+        """
+    )
+    suspend fun softDeleteByChildId(childId: String, now: Timestamp)
+
+    @Query("""
+  DELETE FROM attendances
+  WHERE isDeleted = 1 AND isDirty = 0
+    AND deletedAt IS NOT NULL AND deletedAt <= :cutoff
+""")
+    suspend fun hardDeleteOldTombstones(cutoff: Timestamp): Int
+
+    @Query(
+        """
+        DELETE FROM attendances
+        WHERE childId = :childId
+        """
+    )
+    suspend fun hardDeleteAllByChildId(childId: String)
+
+    @Query("SELECT * FROM attendances WHERE attendanceId IN (:ids)")
+    suspend fun getByIds(ids: List<String>): List<Attendance>
+
+    // <app/src/main/java/com/example/zionkids/data/local/dao/AttendanceDao.kt>
+
+
+    // /// CHANGED: cascade tombstone by eventId (mirror childId cascade)
+    @Query("""
+    UPDATE attendances SET
+        isDeleted = 1,
+        isDirty   = 1,
+        deletedAt = :now,
+        updatedAt = :now,
+        version   = version + 1
+    WHERE eventId = :eventId
+""")
+    suspend fun softDeleteByEventId(eventId: String, now: Timestamp)
+
+
 }

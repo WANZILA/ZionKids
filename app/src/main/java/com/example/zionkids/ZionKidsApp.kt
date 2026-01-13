@@ -7,11 +7,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.example.zionkids.core.sync.ChildrenSyncScheduler
-import com.example.zionkids.core.sync.HydrateChildrenOnce
-import com.example.zionkids.core.sync.attendance.AttendanceSyncScheduler
-import com.example.zionkids.core.sync.attendance.HydrateAttendanceOnce
-import com.example.zionkids.core.sync.event.EventSyncScheduler
-import com.example.zionkids.core.sync.event.HydrateEventsOnce
+//import com.example.zionkids.core.sync.event.HydrateEventsOnce
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.local.db.AppDatabase
 import dagger.hilt.EntryPoint
@@ -19,9 +15,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // >>> FIXED: use KTX imports
@@ -29,16 +22,15 @@ import javax.inject.Inject
 //import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.PersistentCacheSettings
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.auth.ktx.auth
 
 import timber.log.Timber
 
 import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PackageInfoFlags
 import android.os.Build
 import android.content.pm.ApplicationInfo
+import com.example.zionkids.core.sync.CleanerScheduler
+import com.example.zionkids.core.sync.SyncCoordinatorScheduler
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.crashlytics.crashlytics
@@ -48,9 +40,9 @@ import com.google.firebase.firestore.firestore
 class ZionKidsApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
-    @Inject lateinit var hydrateChildrenOnce: HydrateChildrenOnce
-    @Inject lateinit var hydrateEventsOnce: HydrateEventsOnce
-    @Inject lateinit var hydrateAttendanceOnce: HydrateAttendanceOnce
+//    @Inject lateinit var hydrateChildrenOnce: HydrateChildrenOnce
+//    @Inject lateinit var hydrateEventsOnce: HydrateEventsOnce
+//    @Inject lateinit var hydrateAttendanceOnce: HydrateAttendanceOnce
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -139,21 +131,38 @@ class ZionKidsApp : Application(), Configuration.Provider {
         db.openHelper.writableDatabase.query("SELECT 1")
 
         // One-shot hydrate to fill Room quickly (non-blocking)
-        CoroutineScope(Dispatchers.IO).launch {
-            runCatching {
-                hydrateChildrenOnce(pageSize = 100, maxPages = 20)
-                hydrateEventsOnce(pageSize = 100, maxPages = 20)
-                hydrateAttendanceOnce(pageSize = 100, maxPages = 20)
-            }
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            runCatching {
+//                hydrateChildrenOnce(pageSize = 100, maxPages = 20)
+//                hydrateEventsOnce(pageSize = 100, maxPages = 20)
+//                hydrateAttendanceOnce(pageSize = 100, maxPages = 20)
+//            }
+//        }
 
         // Schedule ongoing sync
-        ChildrenSyncScheduler.enqueuePeriodic(this)
-        ChildrenSyncScheduler.enqueueNow(this)
-        EventSyncScheduler.enqueuePeriodic(this)
-        EventSyncScheduler.enqueueNow(this)
-        AttendanceSyncScheduler.enqueueNow(this)
-        AttendanceSyncScheduler.enqueuePeriodic(this)
+        ChildrenSyncScheduler.enqueuePeriodicPush(this)
+        ChildrenSyncScheduler.enqueuePeriodicPull(this)
+
+// CHANGED: pull immediately once at startup
+//        ChildrenSyncScheduler.enqueuePushNow(this)
+        // DEBUG: run immediately so you see logs / data hydration now
+        ChildrenSyncScheduler.enqueuePullNow(this)
+        CleanerScheduler.enqueuePeriodic(this, retentionDays = 30L)
+//        CleanerScheduler.enqueueNow(appContext)
+        SyncCoordinatorScheduler.enqueuePullAllPeriodic(this, cleanerRetentionDays = 30L)
+        SyncCoordinatorScheduler.enqueuePushAllNow(this, cleanerRetentionDays = 30L)
+
+        SyncCoordinatorScheduler.enqueuePushAllPeriodic(this, cleanerRetentionDays = 30L)
+
+
+
+//        ChildrenSyncScheduler.enqueuePeriodicPush(this)
+////        ChildrenSyncScheduler.enqueuePushNow(this)
+//        ChildrenSyncScheduler.enqueuePeriodicPull(this)
+//        EventSyncScheduler.enqueuePeriodicPush(this)
+//        EventSyncScheduler.enqueuePushNow(this)
+//        AttendanceSyncScheduler.enqueuePushNow(this)
+//        AttendanceSyncScheduler.enqueuePeriodicPush(this)
     }
 
     companion object {
@@ -305,12 +314,12 @@ class ZionKidsApp : Application(), Configuration.Provider {
 ////        Timber.d("WorkerFactory type = ${workerFactory::class.qualifiedName}")
 //
 //        // Schedule ongoing sync
-//        ChildrenSyncScheduler.enqueuePeriodic(this)
-//        ChildrenSyncScheduler.enqueueNow(this)
-//        EventSyncScheduler.enqueuePeriodic(this)
-//        EventSyncScheduler.enqueueNow(this)
-//        AttendanceSyncScheduler.enqueueNow(this)
-//        AttendanceSyncScheduler.enqueuePeriodic(this)
+//        ChildrenSyncScheduler.enqueuePeriodicPush(this)
+//        ChildrenSyncScheduler.enqueuePushNow(this)
+//        EventSyncScheduler.enqueuePeriodicPush(this)
+//        EventSyncScheduler.enqueuePushNow(this)
+//        AttendanceSyncScheduler.enqueuePushNow(this)
+//        AttendanceSyncScheduler.enqueuePeriodicPush(this)
 ////        AttendanceSyncScheduler.
 ////        Timber.plant(Timber.DebugTree())
 ////        ChildrenSyncScheduler.enqueueCascadeDelete(this)

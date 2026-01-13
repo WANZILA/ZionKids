@@ -151,27 +151,35 @@ WHERE graduated = 0
     // Bulk mark as pushed (set clean + server-authoritative version/updatedAt)
     @Query(
         """
-        UPDATE children
-        SET isDirty = 0,
-            version = :newVersion,
-            updatedAt = :newUpdatedAt
-        WHERE childId IN (:ids)
-        """
+    UPDATE children
+    SET isDirty = 0,
+        version = version + 1,
+        updatedAt = :newUpdatedAt
+    WHERE childId IN (:ids)
+    """
     )
-    suspend fun markBatchPushed(ids: List<String>, newVersion: Long, newUpdatedAt: Timestamp)
-
+    suspend fun markBatchPushed(ids: List<String>, newUpdatedAt: Timestamp)
     // Soft delete locally (tombstone + mark dirty so it pushes)
     @Query(
         """
         UPDATE children
-        SET isDeleted = 1,
-            isDirty = 1,
-            updatedAt = :now,
-            version = version + 1
-        WHERE childId = :id
+    SET isDeleted = 1,
+        deletedAt = :now,
+        isDirty = 1,
+        updatedAt = :now,
+        version = version + 1
+    WHERE childId = :id
         """
     )
     suspend fun softDelete(id: String, now: Timestamp)
+
+    @Query("""
+  DELETE FROM children
+  WHERE isDeleted = 1 AND isDirty = 0
+    AND deletedAt IS NOT NULL AND deletedAt <= :cutoff
+""")
+    suspend fun hardDeleteOldTombstones(cutoff: Timestamp): Int
+
 
     // Mark/clear dirty explicitly (e.g., after local edit or conflict resolution)
     @Query("UPDATE children SET isDirty = 1, updatedAt = :now, version = version + 1 WHERE childId = :id")

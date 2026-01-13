@@ -423,11 +423,11 @@ class AuthViewModel @Inject constructor(
                     viewModelScope.launch { runCatching { upsertClientVersion(uid) } }
                 }
                 _ui.update { it.copy(loading = false) }
-//                ChildrenSyncScheduler.enqueuePeriodic(context)
-                ChildrenSyncScheduler.enqueueNow(appContext)
-                EventSyncScheduler.enqueueNow(appContext)
-                AttendanceSyncScheduler.enqueueNow(appContext)
-//                AttendanceSyncScheduler.enqueuePeriodic(appContext)
+//                ChildrenSyncScheduler.enqueuePeriodicPush(context)
+//                ChildrenSyncScheduler.enqueuePushNow(appContext)
+//                EventSyncScheduler.enqueuePushNow(appContext)
+//                AttendanceSyncScheduler.enqueuePushNow(appContext)
+//                AttendanceSyncScheduler.enqueuePeriodicPush(appContext)
 
 
                 onSuccess()
@@ -559,9 +559,9 @@ class AuthViewModel @Inject constructor(
             // Ensure the profile exists so rules (isEnabled + hasRole) pass for volunteers
             // (If offline, this safely no-ops; will succeed next time online.)
             runCatching { ensureUserDocExistsIfMissing() }
-            ChildrenSyncScheduler.enqueueNow(appContext)
-            EventSyncScheduler.enqueueNow(appContext)
-            AttendanceSyncScheduler.enqueueNow(appContext)
+//            ChildrenSyncScheduler.enqueuePushNow(appContext)
+//            EventSyncScheduler.enqueuePushNow(appContext)
+//            AttendanceSyncScheduler.enqueuePushNow(appContext)
 
             updateLastKnownNameFrom(cachedProfile)
             usersJob?.cancel(); usersJob = null // don’t run admin stream offline

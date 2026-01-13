@@ -1,5 +1,6 @@
 package com.example.zionkids.presentation.viewModels.children
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,9 +23,11 @@ import javax.inject.Inject
 /// ADDED (imports at top with the others)
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.example.zionkids.core.sync.ChildrenSyncScheduler
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
 import com.example.zionkids.feature.children.childrenPager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -56,7 +59,8 @@ data class ChildrenListUiState(
 class ChildrenListViewModel @Inject constructor(
     private val childrenRepo: OfflineChildrenRepository, // kept for future writes / helpers
     savedState: SavedStateHandle,
-    private val childDao: ChildDao
+    private val childDao: ChildDao,
+    @ApplicationContext val appContext: Context
 ) : ViewModel() {
     // Paging from Room
     // /// CHANGED: paging now follows the query (needle)
@@ -214,6 +218,7 @@ private val _query = MutableStateFlow("")
     fun refresh() {
         viewModelScope.launch {
             try {
+                ChildrenSyncScheduler.enqueuePullNow(appContext)
                 _ui.value = _ui.value.copy(loading = true)
                 // Optional: quick health ping from DAO if you want to ensure DB is reachable
                 // val _ = childDao.peekLocalCount()
