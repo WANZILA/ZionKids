@@ -68,7 +68,8 @@ fun PickerDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 8.dp),
-                                singleLine = true
+                                singleLine = true,
+                                enabled = false
                             )
                         }
                     }
@@ -113,87 +114,6 @@ fun PickerDialog(
     )
 }
 
-//@Composable
-//fun PickerDialog(
-//    title: String,
-//    feature: PickerFeature,
-//    onPicked: (PickerOption) -> Unit,
-//    onDismiss: () -> Unit
-//) {
-//    val query by feature.query.collectAsStateWithLifecycle()
-//    val filtered by feature.filtered.collectAsStateWithLifecycle()
-//
-//    AlertDialog(
-//        onDismissRequest = { feature.clearQuery(); onDismiss() },
-//        // We don't need a confirm button; picking an item is the confirm action.
-//        confirmButton = { },
-//        dismissButton = {
-//            TextButton(onClick = { feature.clearQuery(); onDismiss() }) {
-//                Text("Cancel")
-//            }
-//        },
-//        title = { Text(title) },
-//        text = {
-//            Surface(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .heightIn(max = 480.dp)   // <-- keep room for buttons
-//            ) {
-//                Column(
-//                    verticalArrangement = Arrangement.spacedBy(8.dp),
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    AppTextField(
-//                        value = query,
-//                        onValueChange = feature::updateQuery,
-//                        label = "Search by name or ID",
-//                        modifier = Modifier.fillMaxWidth(),
-//                        singleLine = true
-//                    )
-//
-//                    if (filtered.isEmpty()) {
-//                        Text(
-//                            "No results",
-//                            style = MaterialTheme.typography.bodyMedium,
-//                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                            modifier = Modifier.padding(vertical = 8.dp)
-//                        )
-//                    } else {
-//                        LazyColumn(
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .heightIn(max = 360.dp) // <-- scroll inside dialog
-//                        ) {
-//                            items(filtered, key = { it.id }) { opt ->
-//                                Row(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth()
-//                                        .clickable {
-//                                            onPicked(opt)
-//                                            feature.clearQuery()
-//                                        }
-//                                        .padding(vertical = 10.dp),
-//                                    verticalAlignment = Alignment.CenterVertically
-//                                ) {
-//                                    Avatar(opt.imageUrl, size = 40)
-//                                    Column(Modifier.padding(start = 12.dp)) {
-//                                        Text(opt.name, style = MaterialTheme.typography.bodyLarge)
-//                                        Text(
-//                                            opt.id,
-//                                            style = MaterialTheme.typography.bodySmall,
-//                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-//                                        )
-//                                    }
-//                                }
-//                                Divider()
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    )
-//}
 @Composable
 private fun Avatar(url: String?, size: Int) {
     if (url.isNullOrBlank()) {

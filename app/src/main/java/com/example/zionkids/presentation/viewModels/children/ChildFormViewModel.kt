@@ -1,8 +1,5 @@
 package com.example.zionkids.presentation.viewModels.children
 
-//import ChildrenSyncWorker
-import com.example.zionkids.domain.sync.ChildrenSyncWorker
-
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
@@ -10,25 +7,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.example.core.utils.FormValidatorUtil
 import com.example.zionkids.core.Utils.GenerateId
 import com.example.zionkids.core.Utils.picker.PickerFeature
 import com.example.zionkids.core.Utils.picker.PickerOption
-import com.example.zionkids.core.sync.ChildrenSyncScheduler
 import com.example.zionkids.data.model.*
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
+import com.example.zionkids.domain.repositories.offline.OfflineUgAdminRepository
 import com.example.zionkids.domain.repositories.online.StreetsRepository
 import com.example.zionkids.domain.repositories.online.TechnicalSkillsRepository
-//import com.example.zionkids.domain.sync.ChildrenSyncWorker
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,17 +32,276 @@ private const val MAX_AGE = 25
 
 @HiltViewModel
 class ChildFormViewModel @Inject constructor(
-//    private val repo: ChildrenRepository,
     val repo: OfflineChildrenRepository,
     private val techRepo: TechnicalSkillsRepository,
     private val streetRepo: StreetsRepository,
+    private val ugRepo: OfflineUgAdminRepository,
     @ApplicationContext private val appContext: android.content.Context,
-//    private val work: WorkManager
 ) : ViewModel() {
 
     var ui by mutableStateOf(ChildFormUiState())
 
-    // Build feature instances by passing the repo flows
+    /**
+     * FIXED: This picker now remembers the previously chosen names and always emits the FULL chain.
+     * Your old version was wiping region/district/etc. because it emitted "" for fields you didn't pick.
+     */
+    class UgandaAddressPicker(
+        scope: kotlinx.coroutines.CoroutineScope,
+        private val repo: OfflineUgAdminRepository,
+        private val setAddress: (
+            region: String,
+            district: String,
+            county: String,
+            subCounty: String,
+            parish: String,
+            village: String
+        ) -> Unit
+    ) {
+        // selected CODES (drive downstream queries)
+        private val selectedRegionCode = MutableStateFlow<String?>(null)
+        private val selectedDistrictCode = MutableStateFlow<String?>(null)
+        private val selectedCountyCode = MutableStateFlow<String?>(null)
+        private val selectedSubCountyCode = MutableStateFlow<String?>(null)
+        private val selectedParishCode = MutableStateFlow<String?>(null)
+
+        // selected NAMES (what you store in ChildFormUiState)
+        private var regionName: String = ""
+        private var districtName: String = ""
+        private var countyName: String = ""
+        private var subCountyName: String = ""
+        private var parishName: String = ""
+        private var villageName: String = ""
+
+        private fun emit() {
+            setAddress(
+                regionName,
+                districtName,
+                countyName,
+                subCountyName,
+                parishName,
+                villageName
+            )
+        }
+
+        val regionPicker = PickerFeature(
+            scope = scope,
+            optionsFlow = repo.watchRegions().map { list ->
+                list.map { PickerOption(id = it.regionCode, name = it.regionName) }
+            }
+        )
+
+        val districtPicker = PickerFeature(
+            scope = scope,
+            optionsFlow = selectedRegionCode.flatMapLatest { rc ->
+                if (rc.isNullOrBlank()) flowOf(emptyList())
+                else repo.watchDistricts(rc).map { list ->
+                    list.map { PickerOption(id = it.districtCode, name = it.districtName) }
+                }
+            }
+        )
+
+        val countyPicker = PickerFeature(
+            scope = scope,
+            optionsFlow = selectedDistrictCode.flatMapLatest { dc ->
+                if (dc.isNullOrBlank()) flowOf(emptyList())
+                else repo.watchCounties(dc).map { list ->
+                    list.map { PickerOption(id = it.countyCode, name = it.countyName) }
+                }
+            }
+        )
+
+        val subCountyPicker = PickerFeature(
+            scope = scope,
+            optionsFlow = selectedCountyCode.flatMapLatest { cc ->
+                if (cc.isNullOrBlank()) flowOf(emptyList())
+                else repo.watchSubcounties(cc).map { list ->
+                    list.map { PickerOption(id = it.subCountyCode, name = it.subCountyName) }
+                }
+            }
+        )
+
+        val parishPicker = PickerFeature(
+            scope = scope,
+            optionsFlow = selectedSubCountyCode.flatMapLatest { sc ->
+                if (sc.isNullOrBlank()) flowOf(emptyList())
+                else repo.watchParishes(sc).map { list ->
+                    list.map { PickerOption(id = it.parishCode, name = it.parishName) }
+                }
+            }
+        )
+
+        val villagePicker = PickerFeature(
+            scope = scope,
+            optionsFlow = selectedParishCode.flatMapLatest { pc ->
+                if (pc.isNullOrBlank()) flowOf(emptyList())
+                else repo.watchVillages(pc).map { list ->
+                    list.map { PickerOption(id = it.villageCode, name = it.villageName) }
+                }
+            }
+        )
+
+        fun onRegionPicked(opt: PickerOption) {
+            selectedRegionCode.value = opt.id
+            selectedDistrictCode.value = null
+            selectedCountyCode.value = null
+            selectedSubCountyCode.value = null
+            selectedParishCode.value = null
+
+            regionName = opt.name
+            districtName = ""
+            countyName = ""
+            subCountyName = ""
+            parishName = ""
+            villageName = ""
+
+            emit()
+        }
+
+        fun onDistrictPicked(opt: PickerOption) {
+            selectedDistrictCode.value = opt.id
+            selectedCountyCode.value = null
+            selectedSubCountyCode.value = null
+            selectedParishCode.value = null
+
+            districtName = opt.name
+            countyName = ""
+            subCountyName = ""
+            parishName = ""
+            villageName = ""
+
+            emit()
+        }
+
+        fun onCountyPicked(opt: PickerOption) {
+            selectedCountyCode.value = opt.id
+            selectedSubCountyCode.value = null
+            selectedParishCode.value = null
+
+            countyName = opt.name
+            subCountyName = ""
+            parishName = ""
+            villageName = ""
+
+            emit()
+        }
+
+        fun onSubCountyPicked(opt: PickerOption) {
+            selectedSubCountyCode.value = opt.id
+            selectedParishCode.value = null
+
+            subCountyName = opt.name
+            parishName = ""
+            villageName = ""
+
+            emit()
+        }
+
+        fun onParishPicked(opt: PickerOption) {
+            selectedParishCode.value = opt.id
+
+            parishName = opt.name
+            villageName = ""
+
+            emit()
+        }
+
+        fun onVillagePicked(opt: PickerOption) {
+            villageName = opt.name
+            emit()
+        }
+
+        fun clearAll() {
+            selectedRegionCode.value = null
+            selectedDistrictCode.value = null
+            selectedCountyCode.value = null
+            selectedSubCountyCode.value = null
+            selectedParishCode.value = null
+
+            regionName = ""
+            districtName = ""
+            countyName = ""
+            subCountyName = ""
+            parishName = ""
+            villageName = ""
+
+            emit()
+        }
+    }
+
+
+    // ---------------- Uganda pickers (7 instances) ----------------
+
+    val ugResettlementPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(region = r, district = d, county = c, subCounty = s, parish = p, village = v)
+    }
+
+    val ugM1AncestralPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member1AncestralRegion = r,
+            member1AncestralDistrict = d,
+            member1AncestralCounty = c,
+            member1AncestralSubCounty = s,
+            member1AncestralParish = p,
+            member1AncestralVillage = v
+        )
+    }
+
+    val ugM1RentalPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member1RentalRegion = r,
+            member1RentalDistrict = d,
+            member1RentalCounty = c,
+            member1RentalSubCounty = s,
+            member1RentalParish = p,
+            member1RentalVillage = v
+        )
+    }
+
+    val ugM2AncestralPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member2AncestralRegion = r,
+            member2AncestralDistrict = d,
+            member2AncestralCounty = c,
+            member2AncestralSubCounty = s,
+            member2AncestralParish = p,
+            member2AncestralVillage = v
+        )
+    }
+
+    val ugM2RentalPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member2RentalRegion = r,
+            member2RentalDistrict = d,
+            member2RentalCounty = c,
+            member2RentalSubCounty = s,
+            member2RentalParish = p,
+            member2RentalVillage = v
+        )
+    }
+
+    val ugM3AncestralPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member3AncestralRegion = r,
+            member3AncestralDistrict = d,
+            member3AncestralCounty = c,
+            member3AncestralSubCounty = s,
+            member3AncestralParish = p,
+            member3AncestralVillage = v
+        )
+    }
+
+    val ugM3RentalPicker = UgandaAddressPicker(viewModelScope, ugRepo) { r, d, c, s, p, v ->
+        ui = ui.copy(
+            member3RentalRegion = r,
+            member3RentalDistrict = d,
+            member3RentalCounty = c,
+            member3RentalSubCounty = s,
+            member3RentalParish = p,
+            member3RentalVillage = v
+        )
+    }
+
+    // ---------------- Other pickers ----------------
 
     val streetPicker = PickerFeature(
         scope = viewModelScope,
@@ -69,12 +323,8 @@ class ChildFormViewModel @Inject constructor(
     )
 
     fun onTechnicalSkillsPicked(opt: PickerOption) {
-        // update your form state with client id/name/img
-//        update { copy(clientId = opt.id, clientName = opt.name, clientImage = opt.imageUrl) }
-        ui.copy(
-            technicalSkills = opt.name
-        ).also { ui = it }
-            technicalSkillsPicker.clearQuery()
+        ui = ui.copy(technicalSkills = opt.name)
+        technicalSkillsPicker.clearQuery()
     }
 
     // ---- step control ----
@@ -86,23 +336,21 @@ class ChildFormViewModel @Inject constructor(
         ui = ui.copy(registrationStatus = s)
     }
 
-
     fun goBack() {
         step = when (step) {
             RegistrationStatus.BASICINFOR -> RegistrationStatus.BASICINFOR
             RegistrationStatus.BACKGROUND -> RegistrationStatus.BASICINFOR
             RegistrationStatus.EDUCATION  -> RegistrationStatus.BACKGROUND
             RegistrationStatus.FAMILY     -> RegistrationStatus.SPONSORSHIP
-            RegistrationStatus.SPONSORSHIP     -> RegistrationStatus.SPIRITUAL
+            RegistrationStatus.SPONSORSHIP -> RegistrationStatus.SPIRITUAL
             RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
             RegistrationStatus.COMPLETE   -> RegistrationStatus.SPIRITUAL
         }
         ui = ui.copy(registrationStatus = step)
     }
 
-//    @RequiresApi(Build.VERSION_CODES.O)
-@RequiresApi(Build.VERSION_CODES.O)
-fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         val ok = validateStep(step)
         if (!ok) return@launch
         step = when (step) {
@@ -113,7 +361,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             RegistrationStatus.SPONSORSHIP -> RegistrationStatus.SPIRITUAL
             RegistrationStatus.SPIRITUAL  -> RegistrationStatus.COMPLETE
             RegistrationStatus.COMPLETE   -> RegistrationStatus.SPIRITUAL
-
         }
         ui = ui.copy(registrationStatus = step)
         onAfterSave?.invoke()
@@ -141,7 +388,7 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
 
     // ---- common setters used by UI ----
     fun onFirstName(v: String) {
-        val res = FormValidatorUtil.validateName(v)   // allows letters, digits, _, -, ., ', :
+        val res = FormValidatorUtil.validateName(v)
         ui = ui.copy(fName = res.value, fNameError = res.error)
     }
 
@@ -151,61 +398,50 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     }
 
     fun onStreet(v: String) {
-        // If you added validateStreet() in the util, call that; otherwise reuse validateName:
         val res = FormValidatorUtil.validateName(v)
         ui = ui.copy(street = res.value, streetError = res.error)
     }
-
-
 
     fun onOtherName(v: String) { ui = ui.copy(oName = v) }
 
     fun onInvitedBy(v: Individual) { ui = ui.copy(invitedBy = v) }
     fun onEduPref(v: EducationPreference) { ui = ui.copy(educationPreference = v) }
-    fun onTechSkills(v: String)  { ui = ui.copy(technicalSkills = v) }
-    fun onFormerSponsor(v: Relationship)  { ui = ui.copy(formerSponsor = v) }
-    fun onFormerSponsorOther(v: String)  { ui = ui.copy(formerSponsorOther = v) }
-    fun onTechnicalSkills(v: String) { ui = ui.copy( technicalSkills = v) }
-    fun onConfessedBy(v: ConfessedBy)  { ui = ui.copy(confessedBy = v) }
-    fun onMinistryName(v: String) { ui = ui.copy( ministryName = v) }
+    fun onTechSkills(v: String) { ui = ui.copy(technicalSkills = v) }
+    fun onFormerSponsor(v: Relationship) { ui = ui.copy(formerSponsor = v) }
+    fun onFormerSponsorOther(v: String) { ui = ui.copy(formerSponsorOther = v) }
+    fun onConfessedBy(v: ConfessedBy) { ui = ui.copy(confessedBy = v) }
+    fun onMinistryName(v: String) { ui = ui.copy(ministryName = v) }
 
-    fun onGender(v: Gender) { ui = ui.copy( gender = v) }
-//    fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
-
+    fun onGender(v: Gender) { ui = ui.copy(gender = v) }
     fun onDobVerified(v: Boolean) { ui = ui.copy(dobVerified = v) }
 
     fun onSubCounty(v: String?) { ui = ui.copy(subCounty = v ?: "") }
     fun onSponsored(v: Boolean) { ui = ui.copy(sponsoredForEducation = v) }
-//    fun onSponsorId(v: String?) { ui = ui.copy(sponsorId = v ?: "") }
     fun onSponsorNotes(v: String?) { ui = ui.copy(sponsorNotes = v ?: "") }
 
     fun onGraduated(checked: Boolean) {
         ui = ui.copy(graduated = if (checked) Reply.YES else Reply.NO)
     }
+
     fun generalNotes(v: String?) { ui = ui.copy(generalComments = v ?: "") }
 
-    fun onClassGroup(v: ClassGroup) {
-        // If you added validateStreet() in the util, call that; otherwise reuse validateName:
-//        val res = FormValidatorUtil.validateName(v)
-        ui = ui.copy(classGroup = v)
-    }
+    fun onCountry(v: Country) { ui = ui.copy(country = v) }
 
-
+    fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
 
     private val kampalaTz = java.util.TimeZone.getTimeZone("Africa/Kampala")
 
-    private fun dobFromAge(age: Int): com.google.firebase.Timestamp {
+    private fun dobFromAge(age: Int): Timestamp {
         val cal = java.util.Calendar.getInstance(kampalaTz)
-        // keep today's day & month, go back `age` years
         cal.add(java.util.Calendar.YEAR, -age)
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
         cal.set(java.util.Calendar.MINUTE, 0)
         cal.set(java.util.Calendar.SECOND, 0)
         cal.set(java.util.Calendar.MILLISECOND, 0)
-        return com.google.firebase.Timestamp(cal.time)
+        return Timestamp(cal.time)
     }
 
-    private fun yearsBetweenDobAndToday(dob: com.google.firebase.Timestamp): Int {
+    private fun yearsBetweenDobAndToday(dob: Timestamp): Int {
         val now = java.util.Calendar.getInstance(kampalaTz)
         val birth = java.util.Calendar.getInstance(kampalaTz).apply { time = dob.toDate() }
 
@@ -219,26 +455,31 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         return years.coerceIn(0, MAX_AGE)
     }
 
-    // AGE -> DOB
     fun onAge(text: String) {
-        val clean = text.filter { it.isDigit() }.take(2) // 0–99
+        val clean = text.filter { it.isDigit() }.take(2)
         var newUi = ui.copy(ageText = clean)
 
         val age = clean.toIntOrNull()
         if (age != null && age in 0..MAX_AGE) {
             val inferredDob = dobFromAge(age)
-            // mark as inferred; user can toggle verified manually if needed
-            newUi = newUi.copy(dob = inferredDob, dobVerified = false)
+            newUi = newUi.copy(
+                dob = inferredDob,
+                dobVerified = false,
+                classGroup = classGroupForAge(age) // ✅ auto update
+            )
         }
+
         ui = newUi
     }
 
-    // DOB -> AGE
-    fun onDob(dob: com.google.firebase.Timestamp?) {
+    fun onDob(dob: Timestamp?) {
         var newUi = ui.copy(dob = dob)
         if (dob != null) {
             val age = yearsBetweenDobAndToday(dob)
-            newUi = newUi.copy(ageText = age.toString())
+            newUi = newUi.copy(
+                ageText = age.toString(),
+                classGroup = classGroupForAge(age) // ✅ auto update
+            )
         }
         ui = newUi
     }
@@ -248,27 +489,22 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     fun validateStep(s: RegistrationStatus): Boolean =
         when (s) {
             RegistrationStatus.BASICINFOR -> {
-                val fRes      = FormValidatorUtil.validateName(ui.fName)
-                val lRes      = FormValidatorUtil.validateName(ui.lName)
+                val fRes = FormValidatorUtil.validateName(ui.fName)
+                val lRes = FormValidatorUtil.validateName(ui.lName)
                 val streetRes = FormValidatorUtil.validateName(ui.street)
-                val ageRes    = FormValidatorUtil.validateAgeString(
+                val ageRes = FormValidatorUtil.validateAgeString(
                     ui.ageText.orEmpty(),
                     minAge = 0,
                     maxAge = MAX_AGE
                 )
 
-//                val dobTs = if (ageRes.isValid) {
-//                    dobFromAge(ageRes.value.first)   // keep Kampala TZ behavior
-//                } else ui.dob
-
                 ui = ui.copy(
-                    fName       = fRes.value,       fNameError  = fRes.error,
-                    lName       = lRes.value,       lNameError  = lRes.error,
-                    street      = streetRes.value,  streetError = streetRes.error,
-                    ageText     = ageRes.value.first.toString(),
-                    ageError    = ageRes.error,
-//                    dob         = dobTs,
-                    error       = null
+                    fName = fRes.value, fNameError = fRes.error,
+                    lName = lRes.value, lNameError = lRes.error,
+                    street = streetRes.value, streetError = streetRes.error,
+                    ageText = ageRes.value.first.toString(),
+                    ageError = ageRes.error,
+                    error = null
                 )
 
                 val ok = fRes.isValid && lRes.isValid && streetRes.isValid && ageRes.isValid
@@ -284,7 +520,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             }
         }
 
-
     fun ensureNewIdIfNeeded() {
         if (ui.childId.isBlank()) {
             val now = Timestamp.now()
@@ -296,22 +531,10 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         }
     }
 
-//    /** Partial merge save so we don't wipe other fields. */
-//    fun saveProgress() = viewModelScope.launch {
-//        ensureNewIdIfNeeded()
-//        val now = Timestamp.now()
-//        val id = ui.childId
-//        val child = buildChild(id = id, now = now, status = step)
-//        runCatching { repo.upsert(child, isNew = false) }
-//            .onSuccess { ui = ui.copy(childId = id) }
-//    }
-
-    /** Final save. Emits Saved(id) on success; do NOT navigate here. */
     @RequiresApi(Build.VERSION_CODES.O)
     fun save() = viewModelScope.launch {
         ui = ui.copy(saving = true, error = null)
 
-        // ensure BASICINFOR fields are valid before saving
         if (!validateStep(RegistrationStatus.BASICINFOR)) {
             ui = ui.copy(saving = false)
             _events.trySend(ChildFormEvent.Error("Missing/invalid basic info"))
@@ -326,8 +549,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         runCatching { repo.upsert(child, isNew = ui.isNew) }
             .onSuccess {
                 ui = ui.copy(saving = false, childId = id, isNew = false)
-//                ChildrenSyncScheduler.enqueuePushNow(appContext)
-
                 _events.trySend(ChildFormEvent.Saved(id))
             }
             .onFailure {
@@ -339,12 +560,24 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
     @RequiresApi(Build.VERSION_CODES.O)
     fun finish() = save()
 
-    // ---- helpers ----
+    // inside ChildFormViewModel (same file)
+
+    private fun classGroupForAge(age: Int): ClassGroup {
+        return when (age) {
+            in 0..5 -> ClassGroup.SERGEANT
+            in 6..9 -> ClassGroup.LIEUTENANT
+            in 10..12 -> ClassGroup.CAPTAIN
+            in 13..18 -> ClassGroup.GENERAL
+            in 19..21 -> ClassGroup.MAJOR
+            in 22..MAX_AGE -> ClassGroup.COMMANDER   // <-- for 19–25
+            else -> ui.classGroup // keep whatever is selected if age is <3 or invalid
+        }
+    }
+
     private fun buildChild(id: String, now: Timestamp, status: RegistrationStatus): Child =
         Child(
             childId = id,
 
-            // Basic
             profileImg = ui.profileImg,
             fName = ui.fName.trim(),
             lName = ui.lName.trim(),
@@ -360,12 +593,10 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             educationPreference = ui.educationPreference,
             technicalSkills = ui.technicalSkills,
 
-            // Background
             leftHomeDate = ui.leftHomeDate,
             reasonLeftHome = ui.reasonLeftHome,
             leaveStreetDate = ui.leaveStreetDate,
 
-            // Education
             educationLevel = ui.educationLevel,
             lastClass = ui.lastClass,
             previousSchool = ui.previousSchool,
@@ -373,7 +604,7 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             formerSponsor = ui.formerSponsor,
             formerSponsorOther = ui.formerSponsorOther,
 
-            // Resettlement
+            country = ui.country,
             resettlementPreference = ui.resettlementPreference,
             resettlementPreferenceOther = ui.resettlementPreferenceOther,
             resettled = ui.resettled,
@@ -385,12 +616,27 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             parish = ui.parish,
             village = ui.village,
 
-            // Members
             memberFName1 = ui.memberFName1,
             memberLName1 = ui.memberLName1,
             relationship1 = ui.relationship1,
             telephone1a = ui.telephone1a,
             telephone1b = ui.telephone1b,
+
+            member1AncestralCountry = ui.member1AncestralCountry,
+            member1AncestralRegion = ui.member1AncestralRegion,
+            member1AncestralDistrict = ui.member1AncestralDistrict,
+            member1AncestralCounty = ui.member1AncestralCounty,
+            member1AncestralSubCounty = ui.member1AncestralSubCounty,
+            member1AncestralParish = ui.member1AncestralParish,
+            member1AncestralVillage = ui.member1AncestralVillage,
+
+            member1RentalCountry = ui.member1RentalCountry,
+            member1RentalRegion = ui.member1RentalRegion,
+            member1RentalDistrict = ui.member1RentalDistrict,
+            member1RentalCounty = ui.member1RentalCounty,
+            member1RentalSubCounty = ui.member1RentalSubCounty,
+            member1RentalParish = ui.member1RentalParish,
+            member1RentalVillage = ui.member1RentalVillage,
 
             memberFName2 = ui.memberFName2,
             memberLName2 = ui.memberLName2,
@@ -398,13 +644,44 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             telephone2a = ui.telephone2a,
             telephone2b = ui.telephone2b,
 
+            member2AncestralCountry = ui.member2AncestralCountry,
+            member2AncestralRegion = ui.member2AncestralRegion,
+            member2AncestralDistrict = ui.member2AncestralDistrict,
+            member2AncestralCounty = ui.member2AncestralCounty,
+            member2AncestralSubCounty = ui.member2AncestralSubCounty,
+            member2AncestralParish = ui.member2AncestralParish,
+            member2AncestralVillage = ui.member2AncestralVillage,
+
+            member2RentalCountry = ui.member2RentalCountry,
+            member2RentalRegion = ui.member2RentalRegion,
+            member2RentalDistrict = ui.member2RentalDistrict,
+            member2RentalCounty = ui.member2RentalCounty,
+            member2RentalSubCounty = ui.member2RentalSubCounty,
+            member2RentalParish = ui.member2RentalParish,
+            member2RentalVillage = ui.member2RentalVillage,
+
             memberFName3 = ui.memberFName3,
             memberLName3 = ui.memberLName3,
             relationship3 = ui.relationship3,
             telephone3a = ui.telephone3a,
             telephone3b = ui.telephone3b,
 
-            // Spiritual
+            member3AncestralCountry = ui.member3AncestralCountry,
+            member3AncestralRegion = ui.member3AncestralRegion,
+            member3AncestralDistrict = ui.member3AncestralDistrict,
+            member3AncestralCounty = ui.member3AncestralCounty,
+            member3AncestralSubCounty = ui.member3AncestralSubCounty,
+            member3AncestralParish = ui.member3AncestralParish,
+            member3AncestralVillage = ui.member3AncestralVillage,
+
+            member3RentalCountry = ui.member3RentalCountry,
+            member3RentalRegion = ui.member3RentalRegion,
+            member3RentalDistrict = ui.member3RentalDistrict,
+            member3RentalCounty = ui.member3RentalCounty,
+            member3RentalSubCounty = ui.member3RentalSubCounty,
+            member3RentalParish = ui.member3RentalParish,
+            member3RentalVillage = ui.member3RentalVillage,
+
             acceptedJesus = ui.acceptedJesus,
             confessedBy = ui.confessedBy,
             ministryName = ui.ministryName,
@@ -416,7 +693,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             outcome = ui.outcome,
             generalComments = ui.generalComments,
 
-            // Sponsorship
             partnershipForEducation = ui.sponsoredForEducation,
             partnerId = ui.sponsorId,
             partnerFName = ui.sponsorFName,
@@ -426,7 +702,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
             partnerEmail = ui.sponsorEmail,
             partnerNotes = ui.sponsorNotes,
 
-            // Status & audit
             registrationStatus = status,
             graduated = ui.graduated,
             createdAt = ui.createdAt ?: now,
@@ -459,12 +734,13 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         previousSchool = c.previousSchool,
         reasonLeftSchool = c.reasonLeftSchool,
         formerSponsor = c.formerSponsor,
-        formerSponsorOther =  c.formerSponsorOther,
+        formerSponsorOther = c.formerSponsorOther,
 
         resettlementPreference = c.resettlementPreference,
         resettlementPreferenceOther = c.resettlementPreferenceOther,
         resettled = c.resettled,
         resettlementDate = c.resettlementDate,
+        country = c.country,
         region = c.region,
         district = c.district,
         county = c.county,
@@ -477,18 +753,63 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         relationship1 = c.relationship1,
         telephone1a = c.telephone1a,
         telephone1b = c.telephone1b,
+        member1AncestralCountry = c.member1AncestralCountry,
+        member1AncestralRegion = c.member1AncestralRegion,
+        member1AncestralDistrict = c.member1AncestralDistrict,
+        member1AncestralCounty = c.member1AncestralCounty,
+        member1AncestralSubCounty = c.member1AncestralSubCounty,
+        member1AncestralParish = c.member1AncestralParish,
+        member1AncestralVillage = c.member1AncestralVillage,
+
+        member1RentalCountry = c.member1RentalCountry,
+        member1RentalRegion = c.member1RentalRegion,
+        member1RentalDistrict = c.member1RentalDistrict,
+        member1RentalCounty = c.member1RentalCounty,
+        member1RentalSubCounty = c.member1RentalSubCounty,
+        member1RentalParish = c.member1RentalParish,
+        member1RentalVillage = c.member1RentalVillage,
 
         memberFName2 = c.memberFName2,
         memberLName2 = c.memberLName2,
         relationship2 = c.relationship2,
         telephone2a = c.telephone2a,
         telephone2b = c.telephone2b,
+        member2AncestralCountry = c.member2AncestralCountry,
+        member2AncestralRegion = c.member2AncestralRegion,
+        member2AncestralDistrict = c.member2AncestralDistrict,
+        member2AncestralCounty = c.member2AncestralCounty,
+        member2AncestralSubCounty = c.member2AncestralSubCounty,
+        member2AncestralParish = c.member2AncestralParish,
+        member2AncestralVillage = c.member2AncestralVillage,
+
+        member2RentalCountry = c.member2RentalCountry,
+        member2RentalRegion = c.member2RentalRegion,
+        member2RentalDistrict = c.member2RentalDistrict,
+        member2RentalCounty = c.member2RentalCounty,
+        member2RentalSubCounty = c.member2RentalSubCounty,
+        member2RentalParish = c.member2RentalParish,
+        member2RentalVillage = c.member2RentalVillage,
 
         memberFName3 = c.memberFName3,
         memberLName3 = c.memberLName3,
         relationship3 = c.relationship3,
         telephone3a = c.telephone3a,
         telephone3b = c.telephone3b,
+        member3AncestralCountry = c.member3AncestralCountry,
+        member3AncestralRegion = c.member3AncestralRegion,
+        member3AncestralDistrict = c.member3AncestralDistrict,
+        member3AncestralCounty = c.member3AncestralCounty,
+        member3AncestralSubCounty = c.member3AncestralSubCounty,
+        member3AncestralParish = c.member3AncestralParish,
+        member3AncestralVillage = c.member3AncestralVillage,
+
+        member3RentalCountry = c.member3RentalCountry,
+        member3RentalRegion = c.member3RentalRegion,
+        member3RentalDistrict = c.member3RentalDistrict,
+        member3RentalCounty = c.member3RentalCounty,
+        member3RentalSubCounty = c.member3RentalSubCounty,
+        member3RentalParish = c.member3RentalParish,
+        member3RentalVillage = c.member3RentalVillage,
 
         acceptedJesus = c.acceptedJesus,
         confessedBy = c.confessedBy,
@@ -514,7 +835,6 @@ fun goNext(onAfterSave: (() -> Unit)? = null) = viewModelScope.launch {
         registrationStatus = c.registrationStatus,
         createdAt = c.createdAt
     )
-
 }
 
 // -------------------- UI STATE --------------------
@@ -524,13 +844,11 @@ data class ChildFormUiState(
     val error: String? = null,
     val isNew: Boolean = true,
 
-    // per-field errors
     val fNameError: String? = null,
     val lNameError: String? = null,
     val ageError: String? = null,
     val streetError: String? = null,
 
-    // ===== Basic =====
     val childId: String = "",
     val profileImg: String = "",
 
@@ -553,12 +871,10 @@ data class ChildFormUiState(
     val educationPreference: EducationPreference = EducationPreference.NONE,
     val technicalSkills: String = "",
 
-    // ===== Background =====
     val leftHomeDate: Timestamp? = null,
     val reasonLeftHome: String = "",
     val leaveStreetDate: Timestamp? = null,
 
-    // ===== Education =====
     val educationLevel: EducationLevel = EducationLevel.NONE,
     val lastClass: String = "",
     val previousSchool: String = "",
@@ -566,7 +882,7 @@ data class ChildFormUiState(
     val formerSponsor: Relationship = Relationship.NONE,
     val formerSponsorOther: String = "",
 
-    // ===== Resettlement =====
+    val country: Country = Country.UGANDA,
     val resettlementPreference: ResettlementPreference = ResettlementPreference.DIRECT_HOME,
     val resettlementPreferenceOther: String = "",
     val resettled: Boolean = false,
@@ -578,12 +894,27 @@ data class ChildFormUiState(
     val parish: String = "",
     val village: String = "",
 
-    // ===== Members =====
     val memberFName1: String = "",
     val memberLName1: String = "",
     val relationship1: Relationship = Relationship.NONE,
     val telephone1a: String = "",
     val telephone1b: String = "",
+
+    val member1AncestralCountry: Country = Country.UGANDA,
+    val member1AncestralRegion: String = "",
+    val member1AncestralDistrict: String = "",
+    val member1AncestralCounty: String = "",
+    val member1AncestralSubCounty: String = "",
+    val member1AncestralParish: String = "",
+    val member1AncestralVillage: String = "",
+
+    val member1RentalCountry: Country = Country.UGANDA,
+    val member1RentalRegion: String = "",
+    val member1RentalDistrict: String = "",
+    val member1RentalCounty: String = "",
+    val member1RentalSubCounty: String = "",
+    val member1RentalParish: String = "",
+    val member1RentalVillage: String = "",
 
     val memberFName2: String = "",
     val memberLName2: String = "",
@@ -591,13 +922,44 @@ data class ChildFormUiState(
     val telephone2a: String = "",
     val telephone2b: String = "",
 
+    val member2AncestralCountry: Country = Country.UGANDA,
+    val member2AncestralRegion: String = "",
+    val member2AncestralDistrict: String = "",
+    val member2AncestralCounty: String = "",
+    val member2AncestralSubCounty: String = "",
+    val member2AncestralParish: String = "",
+    val member2AncestralVillage: String = "",
+
+    val member2RentalCountry: Country = Country.UGANDA,
+    val member2RentalRegion: String = "",
+    val member2RentalDistrict: String = "",
+    val member2RentalCounty: String = "",
+    val member2RentalSubCounty: String = "",
+    val member2RentalParish: String = "",
+    val member2RentalVillage: String = "",
+
     val memberFName3: String = "",
     val memberLName3: String = "",
     val relationship3: Relationship = Relationship.NONE,
     val telephone3a: String = "",
     val telephone3b: String = "",
 
-    // ===== Spiritual =====
+    val member3AncestralCountry: Country = Country.UGANDA,
+    val member3AncestralRegion: String = "",
+    val member3AncestralDistrict: String = "",
+    val member3AncestralCounty: String = "",
+    val member3AncestralSubCounty: String = "",
+    val member3AncestralParish: String = "",
+    val member3AncestralVillage: String = "",
+
+    val member3RentalCountry: Country = Country.UGANDA,
+    val member3RentalRegion: String = "",
+    val member3RentalDistrict: String = "",
+    val member3RentalCounty: String = "",
+    val member3RentalSubCounty: String = "",
+    val member3RentalParish: String = "",
+    val member3RentalVillage: String = "",
+
     val acceptedJesus: Reply = Reply.NO,
     val confessedBy: ConfessedBy = ConfessedBy.NONE,
     val ministryName: String = " ",
@@ -609,7 +971,6 @@ data class ChildFormUiState(
     val outcome: String = "",
     val generalComments: String = "",
 
-    // ===== Status & program =====
     val registrationStatus: RegistrationStatus = RegistrationStatus.BASICINFOR,
     val graduated: Reply = Reply.NO,
 
@@ -622,7 +983,6 @@ data class ChildFormUiState(
     val sponsorEmail: String = "",
     val sponsorNotes: String = "",
 
-    // ===== Audit =====
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 )

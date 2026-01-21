@@ -33,20 +33,15 @@ import com.example.zionkids.presentation.screens.widgets.PickerDialog
 import com.example.zionkids.presentation.viewModels.children.ChildFormUiState
 import com.example.zionkids.presentation.viewModels.children.ChildFormViewModel
 import com.google.firebase.Timestamp
-import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Locale
-
-/* ----------------------------------------------------------
- * Top-level Screen
- * ---------------------------------------------------------- */
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChildFormScreen(
-    childIdArg: String?,               // null = create, not null = edit
-    onFinished: (String) -> Unit,      // called after successful save
+    childIdArg: String?,
+    onFinished: (String) -> Unit,
     onSave: () -> Unit,
     navigateUp: () -> Unit,
     toList: () -> Unit,
@@ -63,19 +58,6 @@ fun ChildFormScreen(
         if (childIdArg.isNullOrBlank()) vm.ensureNewIdIfNeeded() else vm.loadForEdit(childIdArg)
     }
 
-
-//    LaunchedEffect(Unit) {
-//        vm.events.collectLatest { ev ->
-//            when (ev) {
-//                is ChildFormViewModel.ChildFormEvent.Saved -> {
-//                    snackbarHostState.showSnackbar("Saved: ${ev.id}")
-//                    onFinished(ev.id)
-//                }
-//                is ChildFormViewModel.ChildFormEvent.Error ->
-//                    snackbarHostState.showSnackbar(ev.msg)
-//            }
-//        }
-//    }
     LaunchedEffect(vm) {
         vm.events.collect { ev ->
             when (ev) {
@@ -83,15 +65,12 @@ fun ChildFormScreen(
                     snackbarHostState.showSnackbar(ev.msg)
                 }
                 is ChildFormViewModel.ChildFormEvent.Saved -> {
-                    // show snackbar first (optional), then navigate/finish
                     onFinished(ev.id)
-                    snackbarHostState.showSnackbar("Saved ")
-                    
+                    snackbarHostState.showSnackbar("Saved")
                 }
             }
         }
     }
-
 
     Scaffold(
         topBar = {
@@ -102,7 +81,8 @@ fun ChildFormScreen(
                 navigationIcon = {
                     IconButton(onClick = navigateUp) {
                         Icon(
-                            Icons.Default.ArrowCircleLeft, contentDescription = "Back",
+                            Icons.Default.ArrowCircleLeft,
+                            contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.secondary
                         )
                     }
@@ -126,7 +106,7 @@ fun ChildFormScreen(
                     } else vm.goNext()
                 },
                 onSave = {
-                    if (vm.validateStep(step) ){
+                    if (vm.validateStep(step)) {
                         vm.finish()
                         navigateUp()
                     }
@@ -135,7 +115,8 @@ fun ChildFormScreen(
                 backEnabled = step != RegistrationStatus.BASICINFOR,
                 actionsEnabled = !savingOrLoading
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { inner ->
         Column(
             modifier
@@ -148,11 +129,11 @@ fun ChildFormScreen(
             when (step) {
                 RegistrationStatus.BASICINFOR -> StepBasicInfo(uiState = ui, vm = vm)
                 RegistrationStatus.BACKGROUND -> StepBackground(uiState = ui, vm = vm)
-                RegistrationStatus.EDUCATION  -> StepEducation(uiState = ui, vm = vm)
-                RegistrationStatus.FAMILY     -> StepFamily(uiState = ui, vm = vm)
-                RegistrationStatus.SPONSORSHIP    -> StepSponsorship(uiState = ui, vm = vm)
-                RegistrationStatus.SPIRITUAL  -> StepSpiritual(uiState = ui, vm = vm)
-                RegistrationStatus.COMPLETE   -> StepComplete(uiState = ui)
+                RegistrationStatus.EDUCATION -> StepEducation(uiState = ui, vm = vm)
+                RegistrationStatus.FAMILY -> StepFamily(uiState = ui, vm = vm)
+                RegistrationStatus.SPONSORSHIP -> StepSponsorship(uiState = ui, vm = vm)
+                RegistrationStatus.SPIRITUAL -> StepSpiritual(uiState = ui, vm = vm)
+                RegistrationStatus.COMPLETE -> StepComplete(uiState = ui)
             }
 
             if (ui.loading) {
@@ -170,10 +151,6 @@ fun ChildFormScreen(
         }
     }
 }
-
-/* ----------------------------------------------------------
- * Nav bar & step header
- * ---------------------------------------------------------- */
 
 @Composable
 private fun StepNavBar(
@@ -231,25 +208,20 @@ private fun StepHeader(
     }
 }
 
-/* ----------------------------------------------------------
- * Step 1 — Basic Info
- * ---------------------------------------------------------- */
-/* ----------------------------------------------------------
- * Step 1 — Basic Info
- * ---------------------------------------------------------- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        val streetDisplay = vm.ui.street.trim().ifBlank { "Tap to choose Street" }
+        var showStreetDialog by remember { mutableStateOf(false) }
 
-        val display = vm.ui.street.trim().ifBlank { "Tap to choose Street" }
-        var showSkillsDialog by remember {  mutableStateOf(false) }
-
-        // First name (required)
         AppTextField(
             value = uiState.fName,
             onValueChange = vm::onFirstName,
@@ -267,11 +239,9 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                     }
                 }
             },
-            errorText = uiState.fNameError,
-//            supportingText = if (uiState.fNameError == null) "2–30 letters, spaces, . ’ -" else null
+            errorText = uiState.fNameError
         )
 
-        // Last name (required)
         AppTextField(
             value = uiState.lName,
             onValueChange = vm::onLastName,
@@ -289,11 +259,9 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                     }
                 }
             },
-            errorText = uiState.lNameError,
-//            supportingText = if (uiState.lNameError == null) "2–30 letters, spaces, . ’ -" else null
+            errorText = uiState.lNameError
         )
 
-        // Other name (optional)
         AppTextField(
             value = uiState.oName,
             onValueChange = vm::onOtherName,
@@ -321,7 +289,7 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForGender,
             iconFor = ::iconForGender
         )
-        // Age
+
         AppTextField(
             value = uiState.ageText,
             onValueChange = vm::onAge,
@@ -336,11 +304,9 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                     }
                 }
             },
-            errorText = uiState.ageError,
-//            supportingText = if (uiState.ageError == null) "Leave blank if unknown" else null
+            errorText = uiState.ageError
         )
 
-        // DOB
         AppDateField(
             label = "Date of Birth",
             value = uiState.dob,
@@ -354,43 +320,25 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             Switch(checked = uiState.dobVerified, onCheckedChange = vm::onDobVerified)
         }
 
-        // Street
-//        AppTextField(
-//            value = uiState.street,
-//            onValueChange = vm::onStreet,
-//            label = "Street / Nearby landmark",
-//            modifier = Modifier.fillMaxWidth(),
-//            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-//            leadingIcon = { Icon(Icons.Outlined.Home, null) },
-//            trailingIcon = {
-//                if (uiState.street.isNotEmpty()) {
-//                    IconButton(onClick = { vm.onStreet("") }) {
-//                        Icon(Icons.Outlined.Clear, "Clear")
-//                    }
-//                }
-//            },
-//            errorText = uiState.streetError,
-//        )
-
+        // Street picker field (tappable)
         AppTextField(
-            value = display,
+            value = streetDisplay,
             onValueChange = { /* read-only */ },
-            label = "Street ",
+            label = "Street",
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { showSkillsDialog = true },
+                .clickable { showStreetDialog = true },
             leadingIcon = { Icon(Icons.Outlined.PanTool, null) },
-            readOnly = true,   // user can’t type
-            enabled = false     // but the whole field is tappable
-
+            readOnly = true,
+            enabled = false,
         )
 
-        if (showSkillsDialog) {
+        if (showStreetDialog) {
             PickerDialog(
                 title = "Select Street",
                 feature = vm.streetPicker,
-                onPicked = { vm.onStreetPicked (it); showSkillsDialog = false },
-                onDismiss = { showSkillsDialog = false }
+                onPicked = { vm.onStreetPicked(it); showStreetDialog = false },
+                onDismiss = { showStreetDialog = false }
             )
         }
 
@@ -402,7 +350,7 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForReply,
             iconFor = ::iconForReply
         )
-        // Invited by (enum)
+
         EnumDropdown(
             title = "Invited by",
             selected = uiState.invitedBy,
@@ -412,15 +360,7 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             iconFor = ::iconForIndividual
         )
 
-        // Invited-by details
-//        AppTextField(
-//            value = uiState.invitedByIndividualId,
-//            onValueChange = { vm.ui = vm.ui.copy(invitedByIndividualId = it) },
-//            label = "Invited by (ID)",
-//            modifier = Modifier.fillMaxWidth(),
-//            leadingIcon = { Icon(Icons.Outlined.Badge, null) }
-//        )
-        if(uiState.invitedBy.name == Individual.OTHER.toString()){
+        if (uiState.invitedBy == Individual.OTHER) {
             AppTextField(
                 value = uiState.invitedByTypeOther,
                 onValueChange = { vm.ui = vm.ui.copy(invitedByTypeOther = it) },
@@ -430,7 +370,6 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             )
         }
 
-        // Education preference (enum)
         EnumDropdown(
             title = "Education preference",
             selected = uiState.educationPreference,
@@ -451,14 +390,14 @@ private fun StepBasicInfo(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     }
 }
 
-/* ----------------------------------------------------------
- * Step 2 — Background
- * ---------------------------------------------------------- */
 @Composable
 private fun StepBackground(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         AppTextField(
@@ -469,50 +408,38 @@ private fun StepBackground(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             leadingIcon = { Icon(Icons.Outlined.Info, null) }
         )
 
-
         AppDateField(
             label = "Left home date",
             value = uiState.leftHomeDate,
             onChanged = { vm.ui = vm.ui.copy(leftHomeDate = it) },
             leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) }
         )
-
     }
 }
 
-/* ----------------------------------------------------------
- * Step 3 — Education
- * ---------------------------------------------------------- */
 @Composable
 private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
-
-    val display = vm.ui.technicalSkills.trim().ifBlank { "Tap to choose skill" }
-    var showTechSkillDialog by remember {  mutableStateOf(false) }
+    val skillsDisplay = vm.ui.technicalSkills.trim().ifBlank { "Tap to choose skill" }
+    var showTechSkillDialog by remember { mutableStateOf(false) }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if(uiState.educationPreference.name == EducationPreference.SKILLING.toString()){
-//            AppTextField(
-//                value = display,
-//                onValueChange = { vm.ui = vm.ui.copy(technicalSkills = it) },
-//                label = "Select skill",
-//                modifier = Modifier.fillMaxWidth(),
-//                leadingIcon = { Icon(Icons.Outlined.PanTool, null) }
-//            )
+        if (uiState.educationPreference == EducationPreference.SKILLING) {
             AppTextField(
-                value = display,
+                value = skillsDisplay,
                 onValueChange = { /* read-only */ },
                 label = "Select skill",
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showTechSkillDialog = true },
                 leadingIcon = { Icon(Icons.Outlined.PanTool, null) },
-                readOnly = true,   // user can’t type
-                enabled = false     // but the whole field is tappable
-
+                readOnly = true
             )
 
             if (showTechSkillDialog) {
@@ -534,12 +461,11 @@ private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             iconFor = ::iconForEducationLevel
         )
 
-        if(
-            uiState.educationLevel.name == EducationLevel.NURSERY.toString() ||
-            uiState.educationLevel.name == EducationLevel.PRIMARY.toString() ||
-            uiState.educationLevel.name == EducationLevel.SECONDARY.toString()
-            ){
-
+        if (
+            uiState.educationLevel == EducationLevel.NURSERY ||
+            uiState.educationLevel == EducationLevel.PRIMARY ||
+            uiState.educationLevel == EducationLevel.SECONDARY
+        ) {
             AppTextField(
                 value = uiState.lastClass,
                 onValueChange = { vm.ui = vm.ui.copy(lastClass = it) },
@@ -564,7 +490,7 @@ private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                 iconFor = ::iconForRelationship
             )
 
-            if(uiState.formerSponsor.name == Relationship.OTHER.toString()){
+            if (uiState.formerSponsor == Relationship.OTHER) {
                 AppTextField(
                     value = uiState.formerSponsorOther,
                     onValueChange = { vm.ui = vm.ui.copy(formerSponsorOther = it) },
@@ -573,6 +499,7 @@ private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                     leadingIcon = { Icon(Icons.Outlined.School, null) }
                 )
             }
+
             AppTextField(
                 value = uiState.reasonLeftSchool,
                 onValueChange = { vm.ui = vm.ui.copy(reasonLeftSchool = it) },
@@ -581,30 +508,33 @@ private fun StepEducation(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                 leadingIcon = { Icon(Icons.Outlined.Info, null) }
             )
         }
-
-
-//
-
-
-
     }
 }
 
-/* ----------------------------------------------------------
- * Step 4 — Family / Resettlement / Sponsorship
- * ---------------------------------------------------------- */
 @Composable
 private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        var showM1Ancestral by rememberSaveable { mutableStateOf(false) }
+        var showM1Rental by rememberSaveable { mutableStateOf(false) }
+
+        var showM2Ancestral by rememberSaveable { mutableStateOf(false) }
+        var showM2Rental by rememberSaveable { mutableStateOf(false) }
+
+        var showM3Ancestral by rememberSaveable { mutableStateOf(false) }
+        var showM3Rental by rememberSaveable { mutableStateOf(false) }
+
         Text("Resettlement", style = MaterialTheme.typography.titleMedium)
 
         AppDateField(
             label = "Leave street date",
-            value = uiState.leaveStreetDate, // <-- renamed
+            value = uiState.leaveStreetDate,
             onChanged = { vm.ui = vm.ui.copy(leaveStreetDate = it) },
             leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) }
         )
@@ -614,6 +544,7 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             Spacer(Modifier.width(12.dp))
             Switch(checked = uiState.resettled, onCheckedChange = { vm.ui = vm.ui.copy(resettled = it) })
         }
+
         AppDateField(
             label = "Resettlement date",
             value = uiState.resettlementDate,
@@ -621,28 +552,51 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) }
         )
 
-        // Location
-        AppTextField(uiState.region, { vm.ui = vm.ui.copy(region = it) }, "Region",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
-        AppTextField(uiState.district, { vm.ui = vm.ui.copy(district = it) }, "District",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
-        AppTextField(uiState.county, { vm.ui = vm.ui.copy(county = it) }, "County",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
-        AppTextField(uiState.subCounty, vm::onSubCounty, "Sub-county",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
-        AppTextField(uiState.parish, { vm.ui = vm.ui.copy(parish = it) }, "Parish",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
-        AppTextField(uiState.village, { vm.ui = vm.ui.copy(village = it) }, "Village",
-            Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+//        EnumDropdown(
+//            title = "Country",
+//            selected = uiState.country,
+//            values = Country.values().toList(),
+//            onSelected = { vm.ui = vm.ui.copy(country = it) },
+//            labelFor = ::labelForCountry,
+//            iconFor = { Icons.Outlined.Public }
+//        )
 
-        Divider(Modifier.padding(vertical = 8.dp))
+        // ---- Child main address ----
+//        if (uiState.country == Country.UGANDA) {
+//            UgandaAddressBlock(
+//                title = "Child — Resettlement Address",
+//                picker = vm.ugResettlementPicker,
+//                region = uiState.region,
+//                district = uiState.district,
+//                county = uiState.county,
+//                subCounty = uiState.subCounty,
+//                parish = uiState.parish,
+//                village = uiState.village
+//            )
+//        } else {
+//            AddressBlock(
+//                title = "Child — Resettlement Address",
+//                country = uiState.country,
+//                onCountry = { vm.ui = vm.ui.copy(country = it) },
+//                region = uiState.region, onRegion = { vm.ui = vm.ui.copy(region = it) },
+//                district = uiState.district, onDistrict = { vm.ui = vm.ui.copy(district = it) },
+//                county = uiState.county, onCounty = { vm.ui = vm.ui.copy(county = it) },
+//                subCounty = uiState.subCounty, onSubCounty = { vm.ui = vm.ui.copy(subCounty = it) },
+//                parish = uiState.parish, onParish = { vm.ui = vm.ui.copy(parish = it) },
+//                village = uiState.village, onVillage = { vm.ui = vm.ui.copy(village = it) }
+//            )
+//        }
+
+//        Divider(Modifier.padding(vertical = 8.dp))
         Text("Primary contact", style = MaterialTheme.typography.titleMedium)
+
         NameRow(
             first = uiState.memberFName1,
             last = uiState.memberLName1,
             onFirst = { vm.ui = vm.ui.copy(memberFName1 = it) },
-            onLast  = { vm.ui = vm.ui.copy(memberLName1 = it) }
+            onLast = { vm.ui = vm.ui.copy(memberLName1 = it) }
         )
+
         EnumDropdown(
             title = "Relationship",
             selected = uiState.relationship1,
@@ -659,14 +613,97 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             onB = { vm.ui = vm.ui.copy(telephone1b = it.filter { ch -> ch.isDigit() }) }
         )
 
+        Spacer(Modifier.height(8.dp))
+
+        ToggleRow("Add Member 1 ancestral address", showM1Ancestral) { showM1Ancestral = it }
+        if (showM1Ancestral) {
+            if (uiState.member1AncestralCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 1 — Ancestral Home",
+                    picker = vm.ugM1AncestralPicker,
+                    region = uiState.member1AncestralRegion,
+                    district = uiState.member1AncestralDistrict,
+                    county = uiState.member1AncestralCounty,
+                    subCounty = uiState.member1AncestralSubCounty,
+                    parish = uiState.member1AncestralParish,
+                    village = uiState.member1AncestralVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 1 — Ancestral Home",
+                    country = uiState.member1AncestralCountry,
+                    onCountry = {
+                            newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member1AncestralCountry = newCountry,
+                            member1AncestralRegion = "",
+                            member1AncestralDistrict = "",
+                            member1AncestralCounty = "",
+                            member1AncestralSubCounty = "",
+                            member1AncestralParish = "",
+                            member1AncestralVillage = ""
+                        )
+
+                    },
+                    region = uiState.member1AncestralRegion, onRegion = { vm.ui = vm.ui.copy(member1AncestralRegion = it) },
+                    district = uiState.member1AncestralDistrict, onDistrict = { vm.ui = vm.ui.copy(member1AncestralDistrict = it) },
+                    county = uiState.member1AncestralCounty, onCounty = { vm.ui = vm.ui.copy(member1AncestralCounty = it) },
+                    subCounty = uiState.member1AncestralSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member1AncestralSubCounty = it) },
+                    parish = uiState.member1AncestralParish, onParish = { vm.ui = vm.ui.copy(member1AncestralParish = it) },
+                    village = uiState.member1AncestralVillage, onVillage = { vm.ui = vm.ui.copy(member1AncestralVillage = it) }
+                )
+            }
+        }
+
+        ToggleRow("Add Member 1 rental address", showM1Rental) { showM1Rental = it }
+        if (showM1Rental) {
+            if (uiState.member1RentalCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 1 — Rental Home",
+                    picker = vm.ugM1RentalPicker,
+                    region = uiState.member1RentalRegion,
+                    district = uiState.member1RentalDistrict,
+                    county = uiState.member1RentalCounty,
+                    subCounty = uiState.member1RentalSubCounty,
+                    parish = uiState.member1RentalParish,
+                    village = uiState.member1RentalVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 1 — Rental Home",
+                    country = uiState.member1RentalCountry,
+                    onCountry = { newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member1RentalCountry = newCountry,
+                            member1RentalRegion = "",
+                            member1RentalDistrict = "",
+                            member1RentalCounty = "",
+                            member1RentalSubCounty = "",
+                            member1RentalParish = "",
+                            member1RentalVillage = ""
+                        )
+                    },
+
+                    region = uiState.member1RentalRegion, onRegion = { vm.ui = vm.ui.copy(member1RentalRegion = it) },
+                    district = uiState.member1RentalDistrict, onDistrict = { vm.ui = vm.ui.copy(member1RentalDistrict = it) },
+                    county = uiState.member1RentalCounty, onCounty = { vm.ui = vm.ui.copy(member1RentalCounty = it) },
+                    subCounty = uiState.member1RentalSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member1RentalSubCounty = it) },
+                    parish = uiState.member1RentalParish, onParish = { vm.ui = vm.ui.copy(member1RentalParish = it) },
+                    village = uiState.member1RentalVillage, onVillage = { vm.ui = vm.ui.copy(member1RentalVillage = it) }
+                )
+            }
+        }
+
         Divider(Modifier.padding(vertical = 8.dp))
         Text("Secondary contact", style = MaterialTheme.typography.titleMedium)
+
         NameRow(
             first = uiState.memberFName2,
             last = uiState.memberLName2,
             onFirst = { vm.ui = vm.ui.copy(memberFName2 = it) },
-            onLast  = { vm.ui = vm.ui.copy(memberLName2 = it) }
+            onLast = { vm.ui = vm.ui.copy(memberLName2 = it) }
         )
+
         EnumDropdown(
             title = "Relationship",
             selected = uiState.relationship2,
@@ -675,6 +712,7 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForRelationship,
             iconFor = ::iconForRelationship
         )
+
         PhoneRow(
             a = uiState.telephone2a,
             b = uiState.telephone2b,
@@ -682,14 +720,94 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             onB = { vm.ui = vm.ui.copy(telephone2b = it.filter { ch -> ch.isDigit() }) }
         )
 
+        ToggleRow("Add Member 2 ancestral address", showM2Ancestral) { showM2Ancestral = it }
+        if (showM2Ancestral) {
+            if (uiState.member2AncestralCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 2 — Ancestral Home",
+                    picker = vm.ugM2AncestralPicker,
+                    region = uiState.member2AncestralRegion,
+                    district = uiState.member2AncestralDistrict,
+                    county = uiState.member2AncestralCounty,
+                    subCounty = uiState.member2AncestralSubCounty,
+                    parish = uiState.member2AncestralParish,
+                    village = uiState.member2AncestralVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 2 — Ancestral Home",
+                    country = uiState.member2AncestralCountry,
+                    onCountry = { newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member2AncestralCountry = newCountry,
+                            member2AncestralRegion = "",
+                            member2AncestralDistrict = "",
+                            member2AncestralCounty = "",
+                            member2AncestralSubCounty = "",
+                            member2AncestralParish = "",
+                            member2AncestralVillage = ""
+                        )
+                    },
+
+                    region = uiState.member2AncestralRegion, onRegion = { vm.ui = vm.ui.copy(member2AncestralRegion = it) },
+                    district = uiState.member2AncestralDistrict, onDistrict = { vm.ui = vm.ui.copy(member2AncestralDistrict = it) },
+                    county = uiState.member2AncestralCounty, onCounty = { vm.ui = vm.ui.copy(member2AncestralCounty = it) },
+                    subCounty = uiState.member2AncestralSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member2AncestralSubCounty = it) },
+                    parish = uiState.member2AncestralParish, onParish = { vm.ui = vm.ui.copy(member2AncestralParish = it) },
+                    village = uiState.member2AncestralVillage, onVillage = { vm.ui = vm.ui.copy(member2AncestralVillage = it) }
+                )
+            }
+        }
+
+        ToggleRow("Add Member 2 rental address", showM2Rental) { showM2Rental = it }
+        if (showM2Rental) {
+            if (uiState.member2RentalCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 2 — Rental Home",
+                    picker = vm.ugM2RentalPicker,
+                    region = uiState.member2RentalRegion,
+                    district = uiState.member2RentalDistrict,
+                    county = uiState.member2RentalCounty,
+                    subCounty = uiState.member2RentalSubCounty,
+                    parish = uiState.member2RentalParish,
+                    village = uiState.member2RentalVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 2 — Rental Home",
+                    country = uiState.member2RentalCountry,
+                    onCountry = { newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member2RentalCountry = newCountry,
+                            member2RentalRegion = "",
+                            member2RentalDistrict = "",
+                            member2RentalCounty = "",
+                            member2RentalSubCounty = "",
+                            member2RentalParish = "",
+                            member2RentalVillage = ""
+                        )
+                    }
+                    ,
+                    region = uiState.member2RentalRegion, onRegion = { vm.ui = vm.ui.copy(member2RentalRegion = it) },
+                    district = uiState.member2RentalDistrict, onDistrict = { vm.ui = vm.ui.copy(member2RentalDistrict = it) },
+                    county = uiState.member2RentalCounty, onCounty = { vm.ui = vm.ui.copy(member2RentalCounty = it) },
+                    subCounty = uiState.member2RentalSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member2RentalSubCounty = it) },
+                    parish = uiState.member2RentalParish, onParish = { vm.ui = vm.ui.copy(member2RentalParish = it) },
+                    village = uiState.member2RentalVillage, onVillage = { vm.ui = vm.ui.copy(member2RentalVillage = it) }
+                )
+            }
+        }
+
         Divider(Modifier.padding(vertical = 8.dp))
         Text("Tertiary contact", style = MaterialTheme.typography.titleMedium)
+
         NameRow(
             first = uiState.memberFName3,
             last = uiState.memberLName3,
             onFirst = { vm.ui = vm.ui.copy(memberFName3 = it) },
-            onLast  = { vm.ui = vm.ui.copy(memberLName3 = it) }
+            onLast = { vm.ui = vm.ui.copy(memberLName3 = it) }
         )
+
         EnumDropdown(
             title = "Relationship",
             selected = uiState.relationship3,
@@ -698,32 +816,104 @@ private fun StepFamily(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForRelationship,
             iconFor = ::iconForRelationship
         )
-//        PhoneRow(
-//            a = uiState.telephone3a,
-//            onA = { vm.ui = vm.ui.copy(telephone3a = it.filter { ch -> ch.isDigit() }) },
-//        )
+
         PhoneRow(
             a = uiState.telephone3a,
             b = uiState.telephone3b,
             onA = { vm.ui = vm.ui.copy(telephone3a = it.filter { ch -> ch.isDigit() }) },
             onB = { vm.ui = vm.ui.copy(telephone3b = it.filter { ch -> ch.isDigit() }) }
         )
+
+        ToggleRow("Add Member 3 ancestral address", showM3Ancestral) { showM3Ancestral = it }
+        if (showM3Ancestral) {
+            if (uiState.member3AncestralCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 3 — Ancestral Home",
+                    picker = vm.ugM3AncestralPicker,
+                    region = uiState.member3AncestralRegion,
+                    district = uiState.member3AncestralDistrict,
+                    county = uiState.member3AncestralCounty,
+                    subCounty = uiState.member3AncestralSubCounty,
+                    parish = uiState.member3AncestralParish,
+                    village = uiState.member3AncestralVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 3 — Ancestral Home",
+                    country = uiState.member3AncestralCountry,
+                    onCountry = { newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member3AncestralCountry = newCountry,
+                            member3AncestralRegion = "",
+                            member3AncestralDistrict = "",
+                            member3AncestralCounty = "",
+                            member3AncestralSubCounty = "",
+                            member3AncestralParish = "",
+                            member3AncestralVillage = ""
+                        )
+                    }
+                    ,
+                    region = uiState.member3AncestralRegion, onRegion = { vm.ui = vm.ui.copy(member3AncestralRegion = it) },
+                    district = uiState.member3AncestralDistrict, onDistrict = { vm.ui = vm.ui.copy(member3AncestralDistrict = it) },
+                    county = uiState.member3AncestralCounty, onCounty = { vm.ui = vm.ui.copy(member3AncestralCounty = it) },
+                    subCounty = uiState.member3AncestralSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member3AncestralSubCounty = it) },
+                    parish = uiState.member3AncestralParish, onParish = { vm.ui = vm.ui.copy(member3AncestralParish = it) },
+                    village = uiState.member3AncestralVillage, onVillage = { vm.ui = vm.ui.copy(member3AncestralVillage = it) }
+                )
+            }
+        }
+
+        ToggleRow("Add Member 3 rental address", showM3Rental) { showM3Rental = it }
+        if (showM3Rental) {
+            if (uiState.member3RentalCountry == Country.UGANDA) {
+                UgandaAddressBlock(
+                    title = "Member 3 — Rental Home",
+                    picker = vm.ugM3RentalPicker,
+                    region = uiState.member3RentalRegion,
+                    district = uiState.member3RentalDistrict,
+                    county = uiState.member3RentalCounty,
+                    subCounty = uiState.member3RentalSubCounty,
+                    parish = uiState.member3RentalParish,
+                    village = uiState.member3RentalVillage
+                )
+            } else {
+                AddressBlock(
+                    title = "Member 3 — Rental Home",
+                    country = uiState.member3RentalCountry,
+                    onCountry = { newCountry ->
+                        vm.ui = vm.ui.copy(
+                            member3RentalCountry = newCountry,
+                            member3RentalRegion = "",
+                            member3RentalDistrict = "",
+                            member3RentalCounty = "",
+                            member3RentalSubCounty = "",
+                            member3RentalParish = "",
+                            member3RentalVillage = ""
+                        )
+                    }
+                    ,
+                    region = uiState.member3RentalRegion, onRegion = { vm.ui = vm.ui.copy(member3RentalRegion = it) },
+                    district = uiState.member3RentalDistrict, onDistrict = { vm.ui = vm.ui.copy(member3RentalDistrict = it) },
+                    county = uiState.member3RentalCounty, onCounty = { vm.ui = vm.ui.copy(member3RentalCounty = it) },
+                    subCounty = uiState.member3RentalSubCounty, onSubCounty = { vm.ui = vm.ui.copy(member3RentalSubCounty = it) },
+                    parish = uiState.member3RentalParish, onParish = { vm.ui = vm.ui.copy(member3RentalParish = it) },
+                    village = uiState.member3RentalVillage, onVillage = { vm.ui = vm.ui.copy(member3RentalVillage = it) }
+                )
+            }
+        }
     }
 }
 
-
-
-/* ----------------------------------------------------------
- * Step 5 — Family / Resettlement / Sponsorship
- * ---------------------------------------------------------- */
 @Composable
 private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
         Text("Sponsorship", style = MaterialTheme.typography.titleMedium)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -731,7 +921,6 @@ private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             Spacer(Modifier.width(12.dp))
             Switch(checked = uiState.sponsoredForEducation, onCheckedChange = vm::onSponsored)
         }
-
 
         AppTextField(
             value = uiState.sponsorFName,
@@ -750,8 +939,8 @@ private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
         PhoneRow(
             a = uiState.sponsorTelephone1,
             b = uiState.sponsorTelephone2,
-            onA = { vm.ui = vm.ui.copy(sponsorTelephone1  = it.filter { ch -> ch.isDigit() }) },
-            onB = { vm.ui = vm.ui.copy(sponsorTelephone2  = it.filter { ch -> ch.isDigit() }) }
+            onA = { vm.ui = vm.ui.copy(sponsorTelephone1 = it.filter { ch -> ch.isDigit() }) },
+            onB = { vm.ui = vm.ui.copy(sponsorTelephone2 = it.filter { ch -> ch.isDigit() }) }
         )
 
         AppTextField(
@@ -768,27 +957,19 @@ private fun StepSponsorship(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Outlined.EditNote, null) }
         )
-     }
+    }
 }
 
-/* ----------------------------------------------------------
- * Step 6 — Spiritual
- * ---------------------------------------------------------- */
 @Composable
 private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     val scroll = rememberScrollState()
     Column(
-        Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-//        EnumDropdown(
-//            title = "Accepted Jesus?",
-//            selected = uiState.acceptedJesus,
-//            values = Reply.values().toList(),
-//            onSelected = { vm.ui = vm.ui.copy(acceptedJesus = it) },
-//            labelFor = ::labelForReply,
-//            iconFor = ::iconForReply
-//        )
         EnumDropdown(
             title = "Who prayed with them?",
             selected = uiState.whoPrayed,
@@ -797,7 +978,7 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             labelFor = ::labelForIndividual,
             iconFor = ::iconForIndividual
         )
-        if(uiState.whoPrayed == Individual.OTHER){
+        if (uiState.whoPrayed == Individual.OTHER) {
             AppTextField(
                 value = uiState.whoPrayedOther,
                 onValueChange = { vm.ui = vm.ui.copy(whoPrayedOther = it) },
@@ -829,6 +1010,7 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             onChanged = { vm.ui = vm.ui.copy(createdAt = it) },
             leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) }
         )
+
         AppTextField(
             value = uiState.outcome,
             onValueChange = { vm.ui = vm.ui.copy(outcome = it) },
@@ -837,7 +1019,7 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
             leadingIcon = { Icon(Icons.Outlined.EditNote, null) },
             maxLines = 5
         )
-//    when a child has completed a skilling or school and they are working
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Graduated")
             Spacer(Modifier.width(12.dp))
@@ -846,7 +1028,6 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
                 onCheckedChange = vm::onGraduated
             )
         }
-
 
         AppTextField(
             value = uiState.generalComments,
@@ -859,9 +1040,6 @@ private fun StepSpiritual(uiState: ChildFormUiState, vm: ChildFormViewModel) {
     }
 }
 
-/* ----------------------------------------------------------
- * Step 7 — Complete
- * ---------------------------------------------------------- */
 @Composable
 private fun StepComplete(uiState: ChildFormUiState) {
     Column(
@@ -875,11 +1053,6 @@ private fun StepComplete(uiState: ChildFormUiState) {
             Text("Review all details, then tap Save")
     }
 }
-
-
-/* ----------------------------------------------------------
- * Reusables — Name, Phone, Date, EnumDropdown
- * ---------------------------------------------------------- */
 
 @Composable
 private fun NameRow(first: String, last: String, onFirst: (String) -> Unit, onLast: (String) -> Unit) {
@@ -922,7 +1095,7 @@ private fun PhoneRow(
     ) {
         AppTextField(
             value = a,
-            onValueChange = onA, // callers can filter digits if desired
+            onValueChange = onA,
             label = "Phone 1",
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(
@@ -969,7 +1142,6 @@ private fun AppDateField(
 ) {
     var show by rememberSaveable { mutableStateOf(false) }
 
-    // Read-only text field that shows the current DOB
     AppTextField(
         value = formatDate(value),
         onValueChange = { /* read-only */ },
@@ -985,8 +1157,6 @@ private fun AppDateField(
     )
 
     if (show) {
-        // 🚀 Create DatePickerState *inside* the dialog so it’s fresh each time you open it,
-        // seeded from the latest DOB.
         val state = rememberDatePickerState(
             initialSelectedDateMillis = value?.toDate()?.time
         )
@@ -1007,56 +1177,189 @@ private fun AppDateField(
     }
 }
 
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//private fun AppDateField(
-//    label: String,
-//    value: com.google.firebase.Timestamp?,
-//    onChanged: (com.google.firebase.Timestamp?) -> Unit,
-//    leadingIcon: @Composable (() -> Unit)? = null
-//) {
-//    var show by rememberSaveable { mutableStateOf(false) }
-//    val state = rememberDatePickerState(initialSelectedDateMillis = value?.toDate()?.time)
-//
-//    // ✅ Sync ONLY when the dialog is closed; don't override the user's live selection.
-//    LaunchedEffect(value, show) {
-//        if (!show) {
-//            state.selectedDateMillis = value?.toDate()?.time
-//        }
-//    }
-//
-//    AppTextField(
-//        value = formatDate(value),
-//        onValueChange = { /* read-only */ },
-//        label = label,
-//        modifier = Modifier.fillMaxWidth(),
-//        readOnly = true,
-//        leadingIcon = leadingIcon,
-//        trailingIcon = {
-//            IconButton(onClick = { show = true }) {
-//                Icon(Icons.Outlined.CalendarMonth, contentDescription = "Pick date")
-//            }
-//        }
-//    )
-//
-//    if (show) {
-//        DatePickerDialog(
-//            onDismissRequest = { show = false },
-//            confirmButton = {
-//                TextButton(onClick = {
-//                    val millis = state.selectedDateMillis
-//                    onChanged(millis?.let { com.google.firebase.Timestamp(java.util.Date(it)) })
-//                    show = false
-//                }) { Text("OK") }
-//            },
-//            dismissButton = { TextButton(onClick = { show = false }) { Text("Cancel") } }
-//        ) {
-//            DatePicker(state = state, showModeToggle = true)
-//        }
-//    }
-//}
+@Composable
+private fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label)
+        Spacer(Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChecked)
+    }
+}
 
-/* -------- EnumDropdown with icons + friendly labels -------- */
+@Composable
+private fun PickerField(
+    label: String,
+    value: String,
+    placeholder: String = "Tap to choose",
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val display = value.trim().ifBlank { placeholder }
+
+    OutlinedTextField(
+        value = display,
+        onValueChange = { /* read-only */ },
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onClick() },
+        readOnly = true,
+        enabled = false,
+        trailingIcon = { Icon(Icons.Outlined.ArrowDropDown, contentDescription = null) }
+    )
+}
+
+@Composable
+private fun UgandaAddressBlock(
+    title: String,
+    picker: ChildFormViewModel.UgandaAddressPicker,
+    region: String,
+    district: String,
+    county: String,
+    subCounty: String,
+    parish: String,
+    village: String
+) {
+    var showRegion by remember { mutableStateOf(false) }
+    var showDistrict by remember { mutableStateOf(false) }
+    var showCounty by remember { mutableStateOf(false) }
+    var showSubCounty by remember { mutableStateOf(false) }
+    var showParish by remember { mutableStateOf(false) }
+    var showVillage by remember { mutableStateOf(false) }
+
+    Text(title, style = MaterialTheme.typography.titleSmall)
+
+    // Region
+    PickerField(
+        label = "Region",
+        value = region,
+        enabled = true,
+        onClick = { showRegion = true }
+    )
+    if (showRegion) {
+        PickerDialog(
+            title = "Select Region",
+            feature = picker.regionPicker,
+            onPicked = {
+                picker.onRegionPicked(it)
+                showRegion = false
+            },
+            onDismiss = { showRegion = false }
+        )
+    }
+
+    // District
+    val districtEnabled = region.isNotBlank()
+    PickerField(
+        label = "District",
+        value = district,
+        enabled = districtEnabled,
+        placeholder = if (districtEnabled) "Tap to choose" else "Select Region first",
+        onClick = { showDistrict = true }
+    )
+    if (showDistrict) {
+        PickerDialog(
+            title = "Select District",
+            feature = picker.districtPicker,
+            onPicked = {
+                picker.onDistrictPicked(it)
+                showDistrict = false
+            },
+            onDismiss = { showDistrict = false }
+        )
+    }
+
+    // County
+    val countyEnabled = district.isNotBlank()
+    PickerField(
+        label = "County",
+        value = county,
+        enabled = countyEnabled,
+        placeholder = if (countyEnabled) "Tap to choose" else "Select District first",
+        onClick = { showCounty = true }
+    )
+    if (showCounty) {
+        PickerDialog(
+            title = "Select County",
+            feature = picker.countyPicker,
+            onPicked = {
+                picker.onCountyPicked(it)
+                showCounty = false
+            },
+            onDismiss = { showCounty = false }
+        )
+    }
+
+    // SubCounty
+    val subEnabled = county.isNotBlank()
+    PickerField(
+        label = "Sub-county",
+        value = subCounty,
+        enabled = subEnabled,
+        placeholder = if (subEnabled) "Tap to choose" else "Select County first",
+        onClick = { showSubCounty = true }
+    )
+    if (showSubCounty) {
+        PickerDialog(
+            title = "Select Sub-county",
+            feature = picker.subCountyPicker,
+            onPicked = {
+                picker.onSubCountyPicked(it)
+                showSubCounty = false
+            },
+            onDismiss = { showSubCounty = false }
+        )
+    }
+
+    // Parish
+    val parishEnabled = subCounty.isNotBlank()
+    PickerField(
+        label = "Parish",
+        value = parish,
+        enabled = parishEnabled,
+        placeholder = if (parishEnabled) "Tap to choose" else "Select Sub-county first",
+        onClick = { showParish = true }
+    )
+    if (showParish) {
+        PickerDialog(
+            title = "Select Parish",
+            feature = picker.parishPicker,
+            onPicked = {
+                picker.onParishPicked(it)
+                showParish = false
+            },
+            onDismiss = { showParish = false }
+        )
+    }
+
+    // Village
+    val villageEnabled = parish.isNotBlank()
+    PickerField(
+        label = "Village",
+        value = village,
+        enabled = villageEnabled,
+        placeholder = if (villageEnabled) "Tap to choose" else "Select Parish first",
+        onClick = { showVillage = true }
+    )
+    if (showVillage) {
+        PickerDialog(
+            title = "Select Village",
+            feature = picker.villagePicker,
+            onPicked = {
+                picker.onVillagePicked(it)
+                showVillage = false
+            },
+            onDismiss = { showVillage = false }
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1089,7 +1392,7 @@ private fun <T : Enum<T>> EnumDropdown(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
         )
 
@@ -1117,8 +1420,6 @@ private fun <T : Enum<T>> EnumDropdown(
         }
     }
 }
-
-/* ---------------- Icon + Label mappers for your enums ---------------- */
 
 private fun iconForIndividual(v: Individual): ImageVector = when (v) {
     Individual.UNCLE -> Icons.Outlined.Person
@@ -1154,18 +1455,24 @@ private fun labelForReply(v: Reply): String = when (v) {
 }
 
 private fun labelForClassGroup(v: ClassGroup): String = when (v) {
-    ClassGroup.SERGEANT -> "Sergeant: 3-5"
+    ClassGroup.SERGEANT -> "Sergeant: 0-5"
     ClassGroup.LIEUTENANT -> "Lieutenant: 6-9"
     ClassGroup.CAPTAIN -> "Captain: 10-12"
-    ClassGroup.GENERAL -> "General: 13-25"
+    ClassGroup.GENERAL -> "General: 13-18"
+    ClassGroup.MAJOR -> "Major: 19-21"
+    ClassGroup.COMMANDER -> "Commander: 22-25"
 }
+
 
 private fun iconForClassGroup(v: ClassGroup): ImageVector = when (v) {
     ClassGroup.SERGEANT -> Icons.Outlined.SpatialAudioOff
     ClassGroup.LIEUTENANT -> Icons.Outlined.Mood
-    ClassGroup.CAPTAIN-> Icons.Outlined.Badge
+    ClassGroup.CAPTAIN -> Icons.Outlined.Badge
     ClassGroup.GENERAL -> Icons.Outlined.ShutterSpeed
+    ClassGroup.MAJOR -> Icons.Outlined.MilitaryTech
+    ClassGroup.COMMANDER -> Icons.Outlined.Star
 }
+
 
 private fun labelForGender(v: Gender): String = when (v) {
     Gender.MALE -> "Male"
@@ -1178,14 +1485,13 @@ private fun iconForGender(v: Gender): ImageVector = when (v) {
 }
 
 private fun labelForResettlementPreference(v: ResettlementPreference): String = when (v) {
-    ResettlementPreference.DIRECT_HOME ->  "Direct Home"
+    ResettlementPreference.DIRECT_HOME -> "Direct Home"
     ResettlementPreference.TEMPORARY_HOME -> "Temporary Home"
     ResettlementPreference.OTHER -> "Other"
-//    Gender.FEMALE -> "Female"
 }
 
 private fun iconForResettlementPreference(v: ResettlementPreference): ImageVector = when (v) {
-    ResettlementPreference.DIRECT_HOME ->  Icons.Outlined.Home
+    ResettlementPreference.DIRECT_HOME -> Icons.Outlined.Home
     ResettlementPreference.TEMPORARY_HOME -> Icons.Outlined.Hotel
     ResettlementPreference.OTHER -> Icons.Outlined.OtherHouses
 }
@@ -1218,30 +1524,14 @@ private fun labelForEducationLevel(v: EducationLevel): String = when (v) {
     EducationLevel.SECONDARY -> "Secondary"
 }
 
-@Suppress("unused")
-private fun iconForStatus(v: RegistrationStatus): ImageVector = when (v) {
-    RegistrationStatus.BASICINFOR -> Icons.Outlined.Badge
-    RegistrationStatus.BACKGROUND -> Icons.Outlined.Description
-    RegistrationStatus.EDUCATION -> Icons.Outlined.School
-    RegistrationStatus.FAMILY -> Icons.Outlined.Home
-    RegistrationStatus.SPONSORSHIP -> Icons.Outlined.Paid
-    RegistrationStatus.SPIRITUAL -> Icons.Outlined.FavoriteBorder
-    RegistrationStatus.COMPLETE -> Icons.Outlined.CheckCircle
+private fun labelForCountry(v: Country): String = when (v) {
+    Country.UGANDA -> "Uganda"
+    Country.KENYA -> "Kenya"
+    Country.TANZANIA -> "Tanzania"
+    Country.RWANDA -> "Rwanda"
+    Country.SUDAN -> "Sudan"
+    Country.BURUNDI -> "Burundi"
 }
-@Suppress("unused")
-private fun labelForStatus(v: RegistrationStatus): String = when (v) {
-    RegistrationStatus.BASICINFOR -> "Basic"
-    RegistrationStatus.BACKGROUND -> "Background"
-    RegistrationStatus.EDUCATION -> "Education"
-    RegistrationStatus.FAMILY -> "Family"
-    RegistrationStatus.SPONSORSHIP -> "Sponsorship"
-    RegistrationStatus.SPIRITUAL -> "Spiritual"
-    RegistrationStatus.COMPLETE -> "Complete"
-}
-
-/* ----------------------------------------------------------
- * Reusable AppTextField (colors + icons + extras)
- * ---------------------------------------------------------- */
 
 @Composable
 private fun AppTextField(
@@ -1289,13 +1579,12 @@ private fun AppTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-//            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             errorBorderColor = MaterialTheme.colorScheme.error,
             errorContainerColor = MaterialTheme.colorScheme.surface,
             errorCursorColor = MaterialTheme.colorScheme.error,
-            disabledTextColor = MaterialTheme.colorScheme.onSurface, //  Prevent fade
+            disabledTextColor = MaterialTheme.colorScheme.onSurface,
             disabledBorderColor = MaterialTheme.colorScheme.outline,
             disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
             disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1305,9 +1594,36 @@ private fun AppTextField(
     )
 }
 
-/* ----------------------------------------------------------
- * MinSdk-24-safe Timestamp -> String formatter
- * ---------------------------------------------------------- */
+@Composable
+private fun AddressBlock(
+    title: String,
+    country: Country,
+    onCountry: (Country) -> Unit,
+    region: String, onRegion: (String) -> Unit,
+    district: String, onDistrict: (String) -> Unit,
+    county: String, onCounty: (String) -> Unit,
+    subCounty: String, onSubCounty: (String) -> Unit,
+    parish: String, onParish: (String) -> Unit,
+    village: String, onVillage: (String) -> Unit
+) {
+    Text(title, style = MaterialTheme.typography.titleSmall)
+
+    EnumDropdown(
+        title = "Country",
+        selected = country,
+        values = Country.values().toList(),
+        onSelected = onCountry,
+        labelFor = ::labelForCountry,
+        iconFor = { Icons.Outlined.Public }
+    )
+
+    AppTextField(region, onRegion, "Region", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+    AppTextField(district, onDistrict, "District", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+    AppTextField(county, onCounty, "County", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+    AppTextField(subCounty, onSubCounty, "Sub-county", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+    AppTextField(parish, onParish, "Parish", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+    AppTextField(village, onVillage, "Village", Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Outlined.Place, null) })
+}
 
 private fun formatDate(ts: Timestamp?): String {
     if (ts == null) return ""

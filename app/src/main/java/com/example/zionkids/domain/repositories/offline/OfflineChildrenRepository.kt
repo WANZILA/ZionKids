@@ -88,11 +88,12 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
         require(id.isNotBlank()) { "childId required (generate one before saving)" }
 
         val prev = childDao.getById(id)
-
         val now = Timestamp.now()
-        val nextVersion = (child.version + 1).coerceAtLeast(1)
 
-        // ✅ define next FIRST
+        // ✅ version must come from the stored row, not the incoming UI model
+        val baseVersion = prev?.version ?: 0
+        val nextVersion = (baseVersion + 1).coerceAtLeast(1)
+
         val next = child.copy(
             isDirty = true,
             isDeleted = false,
@@ -100,15 +101,39 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
             version = nextVersion
         )
 
-        // ✅ then use it for KPIs
         updateKpis(prev = prev, next = next, isDelete = false)
-
-        // ✅ and persist the exact state we counted
         childDao.upsert(next)
         ChildrenSyncScheduler.enqueuePushNow(appContext)
 
         return id
     }
+
+//    override suspend fun upsert(child: Child, isNew: Boolean): String {
+//        val id = child.childId
+//        require(id.isNotBlank()) { "childId required (generate one before saving)" }
+//
+//        val prev = childDao.getById(id)
+//
+//        val now = Timestamp.now()
+//        val nextVersion = (child.version + 1).coerceAtLeast(1)
+//
+//        // ✅ define next FIRST
+//        val next = child.copy(
+//            isDirty = true,
+//            isDeleted = false,
+//            updatedAt = now,
+//            version = nextVersion
+//        )
+//
+//        // ✅ then use it for KPIs
+//        updateKpis(prev = prev, next = next, isDelete = false)
+//
+//        // ✅ and persist the exact state we counted
+//        childDao.upsert(next)
+//        ChildrenSyncScheduler.enqueuePushNow(appContext)
+//
+//        return id
+//    }
 
 //    override suspend fun upsert(child: Child, isNew: Boolean): String {
 //        val id = child.childId

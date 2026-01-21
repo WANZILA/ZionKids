@@ -153,24 +153,21 @@ WHERE graduated = 0
         """
     UPDATE children
     SET isDirty = 0,
-        version = version + 1,
+      --  version = version + 1,
         updatedAt = :newUpdatedAt
     WHERE childId IN (:ids)
     """
     )
     suspend fun markBatchPushed(ids: List<String>, newUpdatedAt: Timestamp)
     // Soft delete locally (tombstone + mark dirty so it pushes)
-    @Query(
-        """
-        UPDATE children
-    SET isDeleted = 1,
-        deletedAt = :now,
-        isDirty = 1,
-        updatedAt = :now,
-        version = version + 1
-    WHERE childId = :id
-        """
-    )
+    @Query("""
+UPDATE children
+SET isDeleted = 1,
+    isDirty = 1,
+    updatedAt = :now,
+    version = version + 1
+WHERE childId = :id
+""")
     suspend fun softDelete(id: String, now: Timestamp)
 
     @Query("""
@@ -182,9 +179,14 @@ WHERE graduated = 0
 
 
     // Mark/clear dirty explicitly (e.g., after local edit or conflict resolution)
-    @Query("UPDATE children SET isDirty = 1, updatedAt = :now, version = version + 1 WHERE childId = :id")
+    @Query("""
+UPDATE children
+SET isDirty = 1,
+    updatedAt = :now,
+    version = version + 1
+WHERE childId = :id
+""")
     suspend fun markDirty(id: String, now: Timestamp)
-
     @Query("UPDATE children SET isDirty = 0 WHERE childId IN (:ids)")
     suspend fun clearDirty(ids: List<String>)
 

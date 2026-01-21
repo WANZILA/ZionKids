@@ -14,10 +14,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.R
+import com.example.zionkids.data.model.ClassGroup
 import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.example.zionkids.presentation.viewModels.children.ChildrenDashboardViewModel
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +41,12 @@ fun ChildrenDashboardScreen(
     val ui by vm.ui.collectAsStateWithLifecycle()
     val authUi by authVM.ui.collectAsStateWithLifecycle()
     val canCreateChild = authUi.perms.canCreateChild
+
+    var classOpen by rememberSaveable { mutableStateOf(false) }
+    var eduOpen by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(classOpen) { vm.setClassExpanded(classOpen) }
+    LaunchedEffect(eduOpen) { vm.setEduExpanded(eduOpen) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -87,9 +99,9 @@ fun ChildrenDashboardScreen(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            StatCard("Total", ui.total.toString(), Modifier.weight(1f))
+//                            StatCard("Total", ui.total.toString(), Modifier.weight(1f))
                             // inProgram = registration incomplete (not fully registered)
-                            StatCard("In Program", ui.inProgram.toString(), Modifier.weight(1f))
+//                            StatCard("In Program", ui.inProgram.toString(), Modifier.weight(1f))
                         }
                     }
 
@@ -114,12 +126,37 @@ fun ChildrenDashboardScreen(
                             )
                         }
                     }
+                    // Class Group distribution (Room-driven)
+                    item {
+                        ExpandableSectionCard(
+                            title = "Class Group",
+                            expanded = classOpen,
+                            onToggle = { classOpen = !classOpen }
+                        ) {
+                            val total = ui.classDist.values.sum().let { if (it <= 0) 1 else it }
+
+                            ClassGroup.values().forEach { g ->
+                                val count = ui.classDist[g] ?: 0
+                                ClassGroupRow(
+                                    label = labelForClassGroupDashboard(g),
+                                    count = count,
+                                    total = total
+                                )
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+                    }
+
 
                     // Education distribution (Room-driven)
                     item {
-                        SectionCard(title = "Education Preference") {
-                            // guard divide-by-zero for progress bars
+                        ExpandableSectionCard(
+                            title = "Education Preference",
+                            expanded = eduOpen,
+                            onToggle = { eduOpen = !eduOpen }
+                        ) {
                             val total = ui.eduDist.values.sum().let { if (it <= 0) 1 else it }
+
                             EducationPreference.values().forEach { pref ->
                                 val count = ui.eduDist[pref] ?: 0
                                 EducationPreferenceRow(
@@ -132,6 +169,7 @@ fun ChildrenDashboardScreen(
                             }
                         }
                     }
+
 
                     item {
                         Row(
@@ -205,6 +243,39 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
     }
 }
 
+@Composable
+private fun ExpandableSectionCard(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    ElevatedCard {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    content()
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EducationPreferenceRow(
@@ -239,6 +310,43 @@ fun DebugSyncBanner(vm: ChildrenDashboardViewModel = hiltViewModel()) {
             Text("Dirty: ${health.dirtyCount}")
         }
     }
+}
+
+@Composable
+private fun ClassGroupRow(
+    label: String,
+    count: Int,
+    total: Int
+) {
+    val pct = ((count * 100f) / total.toFloat()).coerceIn(0f, 100f)
+
+    ElevatedCard {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Count: $count (${String.format("%.0f", pct)}%)",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = (count / total.toFloat()).coerceIn(0f, 1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+            )
+        }
+    }
+}
+
+private fun labelForClassGroupDashboard(v: ClassGroup): String = when (v) {
+    ClassGroup.SERGEANT -> "Sergeant (0–5)"
+    ClassGroup.LIEUTENANT -> "Lieutenant (6–9)"
+    ClassGroup.CAPTAIN -> "Captain (10–12)"
+    ClassGroup.GENERAL -> "General (13–18)"
+    ClassGroup.MAJOR -> "Major (19–21)"
+    ClassGroup.COMMANDER -> "Commander (22–25)"
 }
 
 //package com.example.zionkids.presentation.screens.children

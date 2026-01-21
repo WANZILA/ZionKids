@@ -6,11 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.zionkids.core.sync.SyncCoordinatorScheduler
+//import com.example.zionkids.data.dao.UgAdminDao
 import com.example.zionkids.data.local.dao.AttendanceDao
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.local.dao.EventDao
 import com.example.zionkids.data.local.dao.KpiDao
+import com.example.zionkids.data.local.dao.UgAdminDao
 import com.example.zionkids.data.local.db.AppDatabase
+import com.example.zionkids.data.local.seed.UgAdminSeeder
 //import com.example.zionkids.data.db.AppDatabase
 //import com.example.zionkids.data.model.ChildDao
 import dagger.Module
@@ -18,6 +21,9 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -77,7 +83,8 @@ object DatabaseModule {
     fun provideDb(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            // /// CHANGED: create the human-readable view on first create and on open (idempotent)
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            // /// CHANGED: keep debug view
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     db.execSQL(CREATE_CHILDREN_DEBUG_VIEW)
@@ -85,8 +92,22 @@ object DatabaseModule {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL(CREATE_CHILDREN_DEBUG_VIEW)
                 }
+            // /// CHANGED: create the human-readable view on first create and on open (idempotent)
+//            .addCallback(object : RoomDatabase.Callback() {
+//                override fun onCreate(db: SupportSQLiteDatabase) {
+//                    db.execSQL(CREATE_CHILDREN_DEBUG_VIEW)
+//                }
+//                override fun onOpen(db: SupportSQLiteDatabase) {
+//                    db.execSQL(CREATE_CHILDREN_DEBUG_VIEW)
+//                }
             })
             .build()
+            // /// CHANGED: seed admin tables once (safe: checks count)
+            .also { db ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    UgAdminSeeder(context, db.ugAdminDao()).seedIfEmpty()
+                }
+            }
 //        fun provideDb(@ApplicationContext context: Context): AppDatabase =
 //        Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
 //            .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING) // /// CHANGED: WAL enabled
@@ -120,6 +141,10 @@ object DatabaseModule {
     @Singleton
     fun provideAttendanceDao(db: AppDatabase): AttendanceDao = db.attendanceDao()
 
+
+    // /// CHANGED: new dao provider
+    @Provides @Singleton
+    fun provideUgAdminDao(db: AppDatabase): UgAdminDao = db.ugAdminDao()
     @Provides
     @Singleton
     fun provideSyncCoordinatorScheduler(): SyncCoordinatorScheduler = SyncCoordinatorScheduler

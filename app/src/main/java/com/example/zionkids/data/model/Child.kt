@@ -80,6 +80,7 @@ data class Child(
     val resettlementPreferenceOther: String = "",
     val resettled: Boolean = false,
     val resettlementDate: Timestamp? = null,
+    val country: Country = Country.UGANDA,
 
     val region: String = "",
     val district: String = "",
@@ -94,6 +95,25 @@ data class Child(
     val relationship1: Relationship = Relationship.NONE,
     val telephone1a: String = "",
     val telephone1b: String = "",
+    // ===== Family Member 1 — Ancestral Home =====
+    val member1AncestralCountry: Country = Country.UGANDA,
+
+    val member1AncestralRegion: String = "",
+    val member1AncestralDistrict: String = "",
+    val member1AncestralCounty: String = "",
+    val member1AncestralSubCounty: String = "",
+    val member1AncestralParish: String = "",
+    val member1AncestralVillage: String = "",
+
+// ===== Family Member 1 — Rental Home =====
+    val member1RentalCountry: Country = Country.UGANDA,
+    val member1RentalRegion: String = "",
+    val member1RentalDistrict: String = "",
+    val member1RentalCounty: String = "",
+    val member1RentalSubCounty: String = "",
+    val member1RentalParish: String = "",
+    val member1RentalVillage: String = "",
+
 
     // ===== Family Members 2 =====
     val memberFName2: String = "",
@@ -101,6 +121,27 @@ data class Child(
     val relationship2: Relationship = Relationship.NONE,
     val telephone2a: String = "",
     val telephone2b: String = "",
+    // ===== Family Member 2 — Ancestral Home =====
+    val member2AncestralCountry: Country = Country.UGANDA,
+
+    val member2AncestralRegion: String = "",
+    val member2AncestralDistrict: String = "",
+    val member2AncestralCounty: String = "",
+    val member2AncestralSubCounty: String = "",
+    val member2AncestralParish: String = "",
+    val member2AncestralVillage: String = "",
+
+// ===== Family Member 2 — Rental Home =====
+    val member2RentalCountry: Country = Country.UGANDA,
+
+    val member2RentalRegion: String = "",
+    val member2RentalDistrict: String = "",
+    val member2RentalCounty: String = "",
+    val member2RentalSubCounty: String = "",
+    val member2RentalParish: String = "",
+    val member2RentalVillage: String = "",
+
+
 
     // ===== Family Members 3 =====
     val memberFName3: String = "",
@@ -108,6 +149,26 @@ data class Child(
     val relationship3: Relationship = Relationship.NONE,
     val telephone3a: String = "",
     val telephone3b: String = "",
+    // ===== Family Member 3 — Ancestral Home =====
+    val member3AncestralCountry: Country = Country.UGANDA,
+
+    val member3AncestralRegion: String = "",
+    val member3AncestralDistrict: String = "",
+    val member3AncestralCounty: String = "",
+    val member3AncestralSubCounty: String = "",
+    val member3AncestralParish: String = "",
+    val member3AncestralVillage: String = "",
+
+// ===== Family Member 3 — Rental Home =====
+    val member3RentalCountry: Country = Country.UGANDA,
+
+    val member3RentalRegion: String = "",
+    val member3RentalDistrict: String = "",
+    val member3RentalCounty: String = "",
+    val member3RentalSubCounty: String = "",
+    val member3RentalParish: String = "",
+    val member3RentalVillage: String = "",
+
 
     // ===== Spiritual Info =====
     val acceptedJesus: Reply = Reply.NO,
@@ -183,6 +244,8 @@ enum class ClassGroup {
     LIEUTENANT,
     CAPTAIN,
     GENERAL,
+    MAJOR,
+    COMMANDER,
 }
 
 enum class Gender { MALE, FEMALE }
@@ -191,3 +254,12 @@ enum class RegistrationStatus { BASICINFOR, BACKGROUND, EDUCATION, FAMILY,SPONSO
 enum class  ConfessedBy{ NONE,PHANEROO, OTHER}
 
 enum class EducationLevel { NONE, NURSERY,PRIMARY, SECONDARY}
+
+enum class Country {
+    UGANDA,
+    KENYA,
+    TANZANIA,
+    RWANDA,
+    SUDAN,
+    BURUNDI
+}

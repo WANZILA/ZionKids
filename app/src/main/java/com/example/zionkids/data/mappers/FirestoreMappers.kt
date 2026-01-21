@@ -31,9 +31,22 @@ private fun String?.toEventStatus(): EventStatus =
     runCatching { if (this == null) EventStatus.SCHEDULED else EventStatus.valueOf(this) }
         .getOrDefault(EventStatus.SCHEDULED)
 
+//private fun String?.toClassGroup(): ClassGroup =
+//    runCatching { if (this == null) ClassGroup.SERGEANT else ClassGroup.valueOf(this) }
+//        .getOrDefault(ClassGroup.SERGEANT)
 private fun String?.toClassGroup(): ClassGroup =
-    runCatching { if (this == null) ClassGroup.SERGEANT else ClassGroup.valueOf(this) }
-        .getOrDefault(ClassGroup.SERGEANT)
+    runCatching {
+        when (this?.trim()?.uppercase()) {
+            null, "" -> ClassGroup.SERGEANT
+
+            // ✅ Backward-compat aliases (if you ever used these strings before)
+            "GEN" -> ClassGroup.GENERAL
+            "MAJ" -> ClassGroup.MAJOR
+            "CMD" -> ClassGroup.COMMANDER
+
+            else -> ClassGroup.valueOf(this.trim().uppercase())
+        }
+    }.getOrDefault(ClassGroup.SERGEANT)
 
 private fun String?.toGender(): Gender =
     runCatching { if (this == null) Gender.MALE else Gender.valueOf(this) }
@@ -84,14 +97,20 @@ fun QuerySnapshot.toEvents(): List<Event> =
         e.copy(eventStatus = status)
     }
 
+private fun String?.toCountry(): Country =
+    runCatching { if (this == null) Country.UGANDA else Country.valueOf(this) }
+        .getOrDefault(Country.UGANDA)
+
+
 
 
 /* ======================= DOC -> CHILD ======================= */
 fun DocumentSnapshot.toChildOrNull(): Child? {
-    val isDel = getBoolean("isDeleted") ?: false
-    val delAt = if (isDel) ts("deletedAt") else null
 
     if (data == null) return null
+    val isDel = getBoolean("isDeleted") ?: false
+    val delAt = if (isDel) (ts("deletedAt")) else null
+
 
     return Child(
         // ===== IDs =====
@@ -141,6 +160,7 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         resettlementPreferenceOther = str("resettlementPreferenceOther") ?: "",
         resettled = getBoolean("resettled") ?: false,
         resettlementDate = ts("resettlementDate"),
+        country = (str("country")).toCountry(),
 
         region = str("region") ?: "",
         district = str("district") ?: "",
@@ -155,6 +175,24 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         relationship1 = (str("relationShip1") ?: str("relationship1")).toRelationship(),
         telephone1a = str("telephone1a") ?: "",
         telephone1b = str("telephone1b") ?: "",
+        // ===== Family Member 1 — Ancestral Home =====
+        member1AncestralCountry = (str("member1AncestralCountry")).toCountry(),
+        member1AncestralRegion = str("member1AncestralRegion") ?: "",
+        member1AncestralDistrict = str("member1AncestralDistrict") ?: "",
+        member1AncestralCounty = str("member1AncestralCounty") ?: "",
+        member1AncestralSubCounty = str("member1AncestralSubCounty") ?: "",
+        member1AncestralParish = str("member1AncestralParish") ?: "",
+        member1AncestralVillage = str("member1AncestralVillage") ?: "",
+
+// ===== Family Member 1 — Rental Home =====
+        member1RentalCountry = (str("member1RentalCountry")).toCountry(),
+        member1RentalRegion = str("member1RentalRegion") ?: "",
+        member1RentalDistrict = str("member1RentalDistrict") ?: "",
+        member1RentalCounty = str("member1RentalCounty") ?: "",
+        member1RentalSubCounty = str("member1RentalSubCounty") ?: "",
+        member1RentalParish = str("member1RentalParish") ?: "",
+        member1RentalVillage = str("member1RentalVillage") ?: "",
+
 
         // ===== Family Members 2 =====
         memberFName2 = str("memberFName2") ?: "",
@@ -163,12 +201,48 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         telephone2a = str("telephone2a") ?: "",
         telephone2b = str("telephone2b") ?: "",
 
+        // ===== Family Member 2 — Ancestral Home =====
+        member2AncestralCountry = (str("member2AncestralCountry")).toCountry(),
+        member2AncestralRegion = str("member2AncestralRegion") ?: "",
+        member2AncestralDistrict = str("member2AncestralDistrict") ?: "",
+        member2AncestralCounty = str("member2AncestralCounty") ?: "",
+        member2AncestralSubCounty = str("member2AncestralSubCounty") ?: "",
+        member2AncestralParish = str("member2AncestralParish") ?: "",
+        member2AncestralVillage = str("member2AncestralVillage") ?: "",
+
+// ===== Family Member 2 — Rental Home =====
+        member2RentalCountry = (str("member2RentalCountry")).toCountry(),
+        member2RentalRegion = str("member2RentalRegion") ?: "",
+        member2RentalDistrict = str("member2RentalDistrict") ?: "",
+        member2RentalCounty = str("member2RentalCounty") ?: "",
+        member2RentalSubCounty = str("member2RentalSubCounty") ?: "",
+        member2RentalParish = str("member2RentalParish") ?: "",
+        member2RentalVillage = str("member2RentalVillage") ?: "",
+
         // ===== Family Members 3 =====
         memberFName3 = str("memberFName3") ?: "",
         memberLName3 = str("memberLName3") ?: "",
         relationship3 = (str("relationShip3") ?: str("relationship3")).toRelationship(),
         telephone3a = str("telephone3a") ?: "",
         telephone3b = str("telephone3b") ?: "",
+        // ===== Family Member 3 — Ancestral Home =====
+        member3AncestralCountry = (str("member3AncestralCountry")).toCountry(),
+        member3AncestralRegion = str("member3AncestralRegion") ?: "",
+        member3AncestralDistrict = str("member3AncestralDistrict") ?: "",
+        member3AncestralCounty = str("member3AncestralCounty") ?: "",
+        member3AncestralSubCounty = str("member3AncestralSubCounty") ?: "",
+        member3AncestralParish = str("member3AncestralParish") ?: "",
+        member3AncestralVillage = str("member3AncestralVillage") ?: "",
+
+// ===== Family Member 3 — Rental Home =====
+        member3RentalCountry = (str("member3RentalCountry")).toCountry(),
+        member3RentalRegion = str("member3RentalRegion") ?: "",
+        member3RentalDistrict = str("member3RentalDistrict") ?: "",
+        member3RentalCounty = str("member3RentalCounty") ?: "",
+        member3RentalSubCounty = str("member3RentalSubCounty") ?: "",
+        member3RentalParish = str("member3RentalParish") ?: "",
+        member3RentalVillage = str("member3RentalVillage") ?: "",
+
 
         // ===== Spiritual Info =====
         acceptedJesus = (str("acceptedJesus")).toReply(),
@@ -199,8 +273,11 @@ fun DocumentSnapshot.toChildOrNull(): Child? {
         // ===== Audit =====
         createdAt = ts("createdAt") ?: Timestamp.now(),
         updatedAt = ts("updatedAt") ?: Timestamp.now(),
-        isDeleted = getBoolean("isDeleted") ?: false,
-        deletedAt = ts("deletedAt"),
+        // tombstone
+        isDeleted = isDel,
+        deletedAt = delAt,
+      //  isDeleted = getBoolean("isDeleted") ?: false,
+        //deletedAt = ts("deletedAt"),
         version   = getLong("version") ?: 0L
     )
 }
@@ -348,6 +425,8 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     put("resettled", resettled)
     putIfNotNull("resettlementDate", resettlementDate)
 
+    put("country", country.name)
+
     putIfNotBlank("region", region)
     putIfNotBlank("district", district)
     putIfNotBlank("county", county)
@@ -362,6 +441,22 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     putIfNotBlank("telephone1a", telephone1a)
     putIfNotBlank("telephone1b", telephone1b)
 
+    put("member1AncestralCountry", member1AncestralCountry.name)
+    putIfNotBlank("member1AncestralRegion", member1AncestralRegion)
+    putIfNotBlank("member1AncestralDistrict", member1AncestralDistrict)
+    putIfNotBlank("member1AncestralCounty", member1AncestralCounty)
+    putIfNotBlank("member1AncestralSubCounty", member1AncestralSubCounty)
+    putIfNotBlank("member1AncestralParish", member1AncestralParish)
+    putIfNotBlank("member1AncestralVillage", member1AncestralVillage)
+
+    put("member1RentalCountry", member1RentalCountry.name)
+    putIfNotBlank("member1RentalRegion", member1RentalRegion)
+    putIfNotBlank("member1RentalDistrict", member1RentalDistrict)
+    putIfNotBlank("member1RentalCounty", member1RentalCounty)
+    putIfNotBlank("member1RentalSubCounty", member1RentalSubCounty)
+    putIfNotBlank("member1RentalParish", member1RentalParish)
+    putIfNotBlank("member1RentalVillage", member1RentalVillage)
+
     // ===== Family Members 2 =====
     putIfNotBlank("memberFName2", memberFName2)
     putIfNotBlank("memberLName2", memberLName2)
@@ -369,12 +464,44 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     putIfNotBlank("telephone2a", telephone2a)
     putIfNotBlank("telephone2b", telephone2b)
 
+    put("member3AncestralCountry", member3AncestralCountry.name)
+    putIfNotBlank("member3AncestralRegion", member3AncestralRegion)
+    putIfNotBlank("member3AncestralDistrict", member3AncestralDistrict)
+    putIfNotBlank("member3AncestralCounty", member3AncestralCounty)
+    putIfNotBlank("member3AncestralSubCounty", member3AncestralSubCounty)
+    putIfNotBlank("member3AncestralParish", member3AncestralParish)
+    putIfNotBlank("member3AncestralVillage", member3AncestralVillage)
+
+    put("member3RentalCountry", member3RentalCountry.name)
+    putIfNotBlank("member3RentalRegion", member3RentalRegion)
+    putIfNotBlank("member3RentalDistrict", member3RentalDistrict)
+    putIfNotBlank("member3RentalCounty", member3RentalCounty)
+    putIfNotBlank("member3RentalSubCounty", member3RentalSubCounty)
+    putIfNotBlank("member3RentalParish", member3RentalParish)
+    putIfNotBlank("member3RentalVillage", member3RentalVillage)
+
     // ===== Family Members 3 =====
     putIfNotBlank("memberFName3", memberFName3)
     putIfNotBlank("memberLName3", memberLName3)
     put("relationship3", relationship3.name)
     putIfNotBlank("telephone3a", telephone3a)
     putIfNotBlank("telephone3b", telephone3b)
+
+    put("member3AncestralCountry", member3AncestralCountry.name)
+    putIfNotBlank("member3AncestralRegion", member3AncestralRegion)
+    putIfNotBlank("member3AncestralDistrict", member3AncestralDistrict)
+    putIfNotBlank("member3AncestralCounty", member3AncestralCounty)
+    putIfNotBlank("member3AncestralSubCounty", member3AncestralSubCounty)
+    putIfNotBlank("member3AncestralParish", member3AncestralParish)
+    putIfNotBlank("member3AncestralVillage", member3AncestralVillage)
+
+    put("member3RentalCountry", member3RentalCountry.name)
+    putIfNotBlank("member3RentalRegion", member3RentalRegion)
+    putIfNotBlank("member3RentalDistrict", member3RentalDistrict)
+    putIfNotBlank("member3RentalCounty", member3RentalCounty)
+    putIfNotBlank("member3RentalSubCounty", member3RentalSubCounty)
+    putIfNotBlank("member3RentalParish", member3RentalParish)
+    putIfNotBlank("member3RentalVillage", member3RentalVillage)
 
     // ===== Spiritual =====
     put("acceptedJesus", acceptedJesus.name)
@@ -384,6 +511,8 @@ fun Child.toFirestoreMapPatch(): Map<String, Any> = buildMap {
     put("whoPrayed", whoPrayed.name)
     putIfNotBlank("whoPrayedOther", whoPrayedOther)
     putIfNotBlank("whoPrayedId", whoPrayedId)
+    put("classGroup", classGroup.name)
+
     putIfNotBlank("outcome", outcome)
     putIfNotBlank("generalComments", generalComments)
 

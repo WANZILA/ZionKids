@@ -1,11 +1,14 @@
 package com.example.zionkids.core.di
 
+import com.example.zionkids.data.repositories.offline.OfflineUgAdminRepositoryImpl
 import com.example.zionkids.domain.repositories.offline.OfflineAttendanceRepository
 import com.example.zionkids.domain.repositories.offline.OfflineAttendanceRepositoryImpl
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepositoryImpl
 import com.example.zionkids.domain.repositories.offline.OfflineEventsRepository
 import com.example.zionkids.domain.repositories.offline.OfflineEventsRepositoryImpl
+import com.example.zionkids.domain.repositories.offline.OfflineUgAdminRepository
+//import com.example.zionkids.domain.repositories.offline.OfflineUgAdminRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -32,6 +35,11 @@ abstract class OfflineRepositoryModule {
     @Singleton
     abstract fun bindOfflineAttendanceRepository(impl: OfflineAttendanceRepositoryImpl): OfflineAttendanceRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindOfflineUgAdminRepository(
+        impl: OfflineUgAdminRepositoryImpl
+    ): OfflineUgAdminRepository
 //    @Binds
 //    @Singleton
 //    abstract fun bindOfflineKpiRepository(impl: KpiRepositoryImpl): OfflineEventsRepository
