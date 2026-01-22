@@ -2,9 +2,10 @@
 // /// CHANGED: Add Paging 3 stream for Events (Room-first).
 // /// CHANGED: Keeps existing UI snapshot stream for chips (offline/sync) and search text handling.
 
-package com.example.zionkids.presentation.viewModels.events
+package com.example.zionkids.presentation.screens.events
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.model.Event
@@ -62,7 +63,7 @@ class EventListViewModel @Inject constructor(
         viewModelScope.launch {
             repo.streamEvents()
                 .catch { e ->
-                    android.util.Log.e(TAG, "stream error", e)
+                    Log.e(TAG, "stream error", e)
                     _ui.value = _ui.value.copy(loading = false, error = e.message)
                 }
                 .collect { snap ->

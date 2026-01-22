@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,7 +53,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.data.model.Child
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.children.ChildrenListViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -70,7 +68,7 @@ import androidx.paging.compose.LazyPagingItems
 fun ChildrenListScreen(
     toChildForm: () -> Unit,
     navigateUp: () -> Unit,
-    onChildClick: (String) -> Unit = {},
+    toChildDashboard: (String) -> Unit = {},
     onClearFilter: () -> Unit,            // clear School/Skilling/None filter
     vm: ChildrenListViewModel = hiltViewModel(),
     authVM: AuthViewModel = hiltViewModel()
@@ -266,7 +264,7 @@ fun ChildrenListScreen(
                     )
                     pagedRows.itemCount > 0 -> ChildrenPagingList(
                         items = pagedRows,
-                        onChildClick = onChildClick
+                        onChildClick = toChildDashboard
                     )
                     else -> Text("No matches", modifier = Modifier.align(Alignment.Center))
                 }
@@ -280,7 +278,7 @@ fun ChildrenListScreen(
 //                        modifier = Modifier.align(Alignment.Center)
 //                    )
 //                    ui.children.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
-//                    else -> ChildrenList(items = ui.children, onChildClick = onChildClick)
+//                    else -> ChildrenList(items = ui.children, toChildDashboard = toChildDashboard)
 //                }
 //            }
 //            Box(Modifier.fillMaxSize()) {
@@ -292,11 +290,11 @@ fun ChildrenListScreen(
 //                        modifier = Modifier.align(Alignment.Center)
 //                    )
 ////                    ui.children.isEmpty() -> Text("No matches", modifier = Modifier.align(Alignment.Center))
-////                    else -> ChildrenList(items = ui.children, onChildClick = onChildClick)
+////                    else -> ChildrenList(items = ui.children, toChildDashboard = toChildDashboard)
 //                    /// CHANGED — prefer Room paging list for rendering
 ////                    pagedRows.itemCount > 0 -> ChildrenPagingList(
 ////                        items = pagedRows,
-////                        onChildClick = onChildClick
+////                        toChildDashboard = toChildDashboard
 ////                    )
 //                    else -> Text("No matches", modifier = Modifier.align(Alignment.Center))
 //                }
@@ -440,7 +438,7 @@ private fun Timestamp.asHuman(): String {
 //import androidx.lifecycle.compose.collectAsStateWithLifecycle
 //import com.example.zionkids.data.model.Child
 //import com.example.zionkids.data.model.EducationPreference
-//import com.example.zionkids.presentation.viewModels.children.ChildrenListViewModel
+//import com.example.zionkids.presentation.screens.children.ChildrenListViewModel
 //import com.google.firebase.Timestamp
 //import kotlinx.coroutines.launch
 //import java.text.SimpleDateFormat

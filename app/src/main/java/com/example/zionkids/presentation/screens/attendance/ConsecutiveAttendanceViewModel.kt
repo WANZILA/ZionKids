@@ -1,6 +1,6 @@
 @file:Suppress("FunctionName")
 
-package com.example.zionkids.presentation.viewModels.attendance
+package com.example.zionkids.presentation.screens.attendance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

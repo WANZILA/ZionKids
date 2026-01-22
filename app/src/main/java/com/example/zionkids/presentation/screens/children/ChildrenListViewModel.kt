@@ -1,4 +1,4 @@
-package com.example.zionkids.presentation.viewModels.children
+package com.example.zionkids.presentation.screens.children
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle

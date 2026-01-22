@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.example.zionkids.core.Utils.picker.PickerOption
 import com.example.zionkids.data.model.*
 import kotlinx.coroutines.flow.Flow
 
@@ -65,4 +66,153 @@ interface UgAdminDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVillages(items: List<UgVillageEntity>)
+
+    // =========================================================
+    // Streets (derived from children.street) - Room only (KISS)
+    // =========================================================
+
+    // A–Z distinct streets (non-deleted children only)
+    @Query("""
+        SELECT DISTINCT TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        ORDER BY name COLLATE NOCASE
+    """)
+    fun watchStreetNames(): Flow<List<String>>
+
+    @Query("""
+        SELECT DISTINCT TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        ORDER BY name COLLATE NOCASE
+    """)
+    suspend fun getStreetNames(): List<String>
+
+    // Most-used streets first (count desc), still distinct & trimmed
+    @Query("""
+        SELECT TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        GROUP BY name
+        ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+    """)
+    fun watchStreetNamesMostUsed(): Flow<List<String>>
+
+    @Query("""
+        SELECT TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        GROUP BY name
+        ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+    """)
+    suspend fun getStreetNamesMostUsed(): List<String>
+
+    // Prefix search (A–Z). You can switch to "most used" by adding GROUP BY + COUNT ordering if you want.
+    @Query("""
+        SELECT DISTINCT TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+          AND TRIM(street) LIKE (:prefix || '%')
+        ORDER BY name COLLATE NOCASE
+        LIMIT :limit
+    """)
+    suspend fun searchStreetNamesByPrefix(prefix: String, limit: Int): List<String>
+
+    // Picker versions (KISS: id == name)
+    @Query("""
+        SELECT DISTINCT TRIM(street) AS id, TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        ORDER BY name COLLATE NOCASE
+    """)
+    fun streetsPickerWatchAll(): Flow<List<PickerOption>>
+
+    @Query("""
+        SELECT TRIM(street) AS id, TRIM(street) AS name
+        FROM children
+        WHERE isDeleted = 0
+          AND TRIM(street) != ''
+        GROUP BY name
+        ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+    """)
+    fun streetsPickerWatchMostUsed(): Flow<List<PickerOption>>
+
+    // =========================================================
+// Member1 Ancestral District (derived from children.member1AncestralDistrict)
+// =========================================================
+
+    @Query("""
+    SELECT DISTINCT TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    ORDER BY name COLLATE NOCASE
+""")
+    fun watchMember1AncestralDistricts(): Flow<List<String>>
+
+    @Query("""
+    SELECT DISTINCT TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    ORDER BY name COLLATE NOCASE
+""")
+    suspend fun getMember1AncestralDistricts(): List<String>
+
+    @Query("""
+    SELECT TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    GROUP BY name
+    ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+""")
+    fun watchMember1AncestralDistrictsMostUsed(): Flow<List<String>>
+
+    @Query("""
+    SELECT TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    GROUP BY name
+    ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+""")
+    suspend fun getMember1AncestralDistrictsMostUsed(): List<String>
+
+    @Query("""
+    SELECT DISTINCT TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+      AND TRIM(member1AncestralDistrict) LIKE (:prefix || '%')
+    ORDER BY name COLLATE NOCASE
+    LIMIT :limit
+""")
+    suspend fun searchMember1AncestralDistrictsByPrefix(prefix: String, limit: Int): List<String>
+
+    @Query("""
+    SELECT DISTINCT TRIM(member1AncestralDistrict) AS id, TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    ORDER BY name COLLATE NOCASE
+""")
+    fun member1AncestralDistrictPickerWatchAll(): Flow<List<PickerOption>>
+
+    @Query("""
+    SELECT TRIM(member1AncestralDistrict) AS id, TRIM(member1AncestralDistrict) AS name
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    GROUP BY name
+    ORDER BY COUNT(*) DESC, name COLLATE NOCASE
+""")
+    fun member1AncestralDistrictPickerWatchMostUsed(): Flow<List<PickerOption>>
+
 }

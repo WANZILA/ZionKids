@@ -3,13 +3,12 @@
 // /// CHANGED: Soft-delete locally (Room) using Firestore Timestamp; worker will push.
 // /// CHANGED: Removed online EventsRepository dependency.
 
-package com.example.zionkids.presentation.viewModels.events
+package com.example.zionkids.presentation.screens.events
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.local.dao.EventDao // /// CHANGED
 import com.example.zionkids.data.model.Event
-import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
 import com.example.zionkids.domain.repositories.offline.OfflineEventsRepository
 import com.google.firebase.Timestamp // /// CHANGED
 import dagger.hilt.android.lifecycle.HiltViewModel

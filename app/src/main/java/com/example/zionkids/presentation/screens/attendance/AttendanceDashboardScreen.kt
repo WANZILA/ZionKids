@@ -4,10 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudDone
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,8 +17,6 @@ import com.example.zionkids.data.model.AttendanceStatus
 import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
-import com.example.zionkids.presentation.viewModels.attendance.AttendanceDashboardViewModel
-import com.example.zionkids.presentation.viewModels.attendance.ChildAttendanceHistory
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -356,8 +350,8 @@ private fun Child.fullName(): String =
 //import com.example.zionkids.data.model.Child
 //import com.example.zionkids.data.model.Event
 //import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
-//import com.example.zionkids.presentation.viewModels.attendance.AttendanceDashboardViewModel
-//import com.example.zionkids.presentation.viewModels.attendance.ChildAttendanceHistory
+//import com.example.zionkids.presentation.screens.attendance.AttendanceDashboardViewModel
+//import com.example.zionkids.presentation.screens.attendance.ChildAttendanceHistory
 //import com.google.firebase.Timestamp
 //import java.text.SimpleDateFormat
 //import java.util.Locale

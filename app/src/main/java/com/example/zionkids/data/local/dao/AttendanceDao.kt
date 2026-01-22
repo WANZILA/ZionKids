@@ -4,6 +4,7 @@ package com.example.zionkids.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.example.zionkids.data.local.projection.EventAttendanceRow
 import com.example.zionkids.data.model.Attendance
 import com.example.zionkids.data.model.AttendanceStatus
 import com.google.firebase.Timestamp
@@ -176,6 +177,80 @@ interface AttendanceDao {
     suspend fun getByIds(ids: List<String>): List<Attendance>
 
     // <app/src/main/java/com/example/zionkids/data/local/dao/AttendanceDao.kt>
+    @Query("""
+    SELECT COUNT(*) FROM attendances
+    WHERE isDeleted = 0 AND childId = :childId
+""")
+    fun observeCountForChild(childId: String): Flow<Int>
+
+    @Query("""
+    SELECT COUNT(*) FROM attendances
+    WHERE isDeleted = 0 AND childId = :childId AND status = :status
+""")
+    fun observeCountForChildByStatus(childId: String, status: AttendanceStatus): Flow<Int>
+
+
+    @Query("""
+    SELECT 
+        e.eventId AS eventId,
+        e.title AS title,
+        e.eventDate AS eventDate,
+        e.teamName AS teamName,
+        e.location AS location,
+        a.status AS status,
+        a.notes AS notes
+    FROM attendances a
+    JOIN events e ON e.eventId = a.eventId
+    WHERE a.isDeleted = 0
+      AND e.isDeleted = 0
+      AND a.childId = :childId
+      AND a.status = 'PRESENT'
+    ORDER BY e.eventDate DESC, a.updatedAt DESC
+""")
+    fun observeAttendedEventsForChild(childId: String): Flow<List<EventAttendanceRow>>
+
+    @Query("""
+    SELECT 
+        e.eventId AS eventId,
+        e.title AS title,
+        e.eventDate AS eventDate,
+        e.teamName AS teamName,
+        e.location AS location,
+        a.status AS status,
+        a.notes AS notes
+    FROM attendances a
+    JOIN events e ON e.eventId = a.eventId
+    WHERE a.isDeleted = 0
+      AND e.isDeleted = 0
+      AND a.childId = :childId
+      AND a.status = 'ABSENT'
+      AND TRIM(IFNULL(a.notes, '')) != ''
+    ORDER BY e.eventDate DESC, a.updatedAt DESC
+""")
+    fun observeMissedEventsForChildWithReason(childId: String): Flow<List<EventAttendanceRow>>
+
+    @Query("""
+    SELECT 
+        e.eventId AS eventId,
+        e.title AS title,
+        e.eventDate AS eventDate,
+        e.teamName AS teamName,
+        e.location AS location,
+        a.status AS status,
+        a.notes AS notes
+    FROM attendances a
+    JOIN events e ON e.eventId = a.eventId
+    WHERE a.isDeleted = 0
+      AND e.isDeleted = 0
+      AND a.childId = :childId
+      AND (
+           a.status = 'PRESENT'
+        OR a.status = 'EXCUSED'
+        OR (a.status = 'ABSENT' AND TRIM(IFNULL(a.notes, '')) != '')
+      )
+    ORDER BY e.eventDate DESC, a.updatedAt DESC
+""")
+    fun observeAllRecordedEventsForChild(childId: String): Flow<List<EventAttendanceRow>>
 
 
     // /// CHANGED: cascade tombstone by eventId (mirror childId cascade)

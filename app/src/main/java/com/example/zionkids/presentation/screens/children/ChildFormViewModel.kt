@@ -1,5 +1,6 @@
-package com.example.zionkids.presentation.viewModels.children
+package com.example.zionkids.presentation.screens.children
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import com.example.zionkids.domain.repositories.online.TechnicalSkillsRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -26,6 +28,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.TimeZone
 import javax.inject.Inject
 
 private const val MAX_AGE = 25
@@ -36,7 +40,7 @@ class ChildFormViewModel @Inject constructor(
     private val techRepo: TechnicalSkillsRepository,
     private val streetRepo: StreetsRepository,
     private val ugRepo: OfflineUgAdminRepository,
-    @ApplicationContext private val appContext: android.content.Context,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     var ui by mutableStateOf(ChildFormUiState())
@@ -46,7 +50,7 @@ class ChildFormViewModel @Inject constructor(
      * Your old version was wiping region/district/etc. because it emitted "" for fields you didn't pick.
      */
     class UgandaAddressPicker(
-        scope: kotlinx.coroutines.CoroutineScope,
+        scope: CoroutineScope,
         private val repo: OfflineUgAdminRepository,
         private val setAddress: (
             region: String,
@@ -429,27 +433,27 @@ class ChildFormViewModel @Inject constructor(
 
     fun onClassGroup(v: ClassGroup) { ui = ui.copy(classGroup = v) }
 
-    private val kampalaTz = java.util.TimeZone.getTimeZone("Africa/Kampala")
+    private val kampalaTz = TimeZone.getTimeZone("Africa/Kampala")
 
     private fun dobFromAge(age: Int): Timestamp {
-        val cal = java.util.Calendar.getInstance(kampalaTz)
-        cal.add(java.util.Calendar.YEAR, -age)
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val cal = Calendar.getInstance(kampalaTz)
+        cal.add(Calendar.YEAR, -age)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
         return Timestamp(cal.time)
     }
 
     private fun yearsBetweenDobAndToday(dob: Timestamp): Int {
-        val now = java.util.Calendar.getInstance(kampalaTz)
-        val birth = java.util.Calendar.getInstance(kampalaTz).apply { time = dob.toDate() }
+        val now = Calendar.getInstance(kampalaTz)
+        val birth = Calendar.getInstance(kampalaTz).apply { time = dob.toDate() }
 
-        var years = now.get(java.util.Calendar.YEAR) - birth.get(java.util.Calendar.YEAR)
+        var years = now.get(Calendar.YEAR) - birth.get(Calendar.YEAR)
         val birthdayThisYear =
-            now.get(java.util.Calendar.MONTH) > birth.get(java.util.Calendar.MONTH) ||
-                    (now.get(java.util.Calendar.MONTH) == birth.get(java.util.Calendar.MONTH) &&
-                            now.get(java.util.Calendar.DAY_OF_MONTH) >= birth.get(java.util.Calendar.DAY_OF_MONTH))
+            now.get(Calendar.MONTH) > birth.get(Calendar.MONTH) ||
+                    (now.get(Calendar.MONTH) == birth.get(Calendar.MONTH) &&
+                            now.get(Calendar.DAY_OF_MONTH) >= birth.get(Calendar.DAY_OF_MONTH))
 
         if (!birthdayThisYear) years -= 1
         return years.coerceIn(0, MAX_AGE)

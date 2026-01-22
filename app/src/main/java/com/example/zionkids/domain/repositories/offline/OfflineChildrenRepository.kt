@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 
 import com.example.zionkids.data.local.dao.ChildDao
+import com.example.zionkids.data.local.dao.KeyCount
 import com.example.zionkids.data.local.dao.KpiDao
 import com.example.zionkids.domain.repositories.online.ChildrenSnapshot   // /// CHANGED: reuse existing snapshot model
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,6 +40,9 @@ import java.util.Calendar
 
 interface OfflineChildrenRepository {
     suspend fun getChildFast(id: String): Child?
+
+    fun observeChild(id: String): kotlinx.coroutines.flow.Flow<com.example.zionkids.data.model.Child?>
+
     fun streamChildren(): Flow<List<Child>>
     suspend fun upsert(child: Child, isNew: Boolean): String
     suspend fun getAll(): List<Child>
@@ -67,6 +71,11 @@ interface OfflineChildrenRepository {
     // Replace (or add new)
     suspend fun deleteChildCascade(childId: String)
 
+ //displaying the streets and districts
+    fun watchStreetCounts(): Flow<List<KeyCount>>
+    fun watchMember1AncestralDistrictCounts(): Flow<List<KeyCount>>
+    fun watchTotalChildren(): Flow<Int>
+
 }
 //suspend fun KpiDao.inc(key: String, delta: Long) = bump(key, delta)
 @Singleton
@@ -79,6 +88,10 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
 
     override suspend fun getChildFast(id: String): Child? =
         childDao.getById(id)
+
+    override fun observeChild(id: String) =
+        childDao.observeById(id)
+
 
     override fun streamChildren(): Flow<List<Child>> =
         childDao.observeAllActive()
@@ -401,174 +414,12 @@ class OfflineChildrenRepositoryImpl @Inject constructor(
 //        ChildrenSyncScheduler.enqueueCascadeDelete(appContext, childId)
     }
 
-//    override suspend fun hardDeleteCascade(childId: String) {
-//        require(childId.isNotBlank()) { "childId is blank" }
-//
-//        // 1) Remove from Room immediately (UI updates now)
-//        childDao.hardDelete(childId)
-//
-//        // 2) Kick a one-off worker to delete Firestore child + all attendances
-//        val input = Data.Builder()
-//            .putString(ChildrenCascadeDeleteWorker.KEY_CHILD_ID, childId)
-//            .build()
-//
-//        val req = OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
-//            .setInputData(input)
-//            .build()
-//
-//        WorkManager.getInstance(appContext).enqueueUniqueWork(
-//            "children_cascade_delete_$childId",
-//            ExistingWorkPolicy.APPEND,
-//            req
-//        )
-//    }
+    override fun watchStreetCounts(): Flow<List<KeyCount>> = childDao.watchStreetCounts()
 
-//    override suspend fun hardDeleteCascade(childId: String) {
-////         1) Purge from Room immediately (UI updates instantly)
-//        childDao.hardDelete(childId)
-//
-//        // 2) Enqueue a one-shot Worker to delete Firestore child doc and attendance subcollection
-//        val input = Data.Builder()
-//            .putString(ChildrenCascadeDeleteWorker.KEY_CHILD_ID, childId)
-//            .build()
-//
-//        val req = OneTimeWorkRequestBuilder<ChildrenCascadeDeleteWorker>()
-//            .setInputData(input)
-//            .build()
-//
-//        WorkManager.getInstance(appContext)
-//            .enqueueUniqueWork(
-//                "children_cascade_delete_$childId",
-//                ExistingWorkPolicy.REPLACE,
-//                req
-//            )
-//    }
+    override fun watchMember1AncestralDistrictCounts(): Flow<List<KeyCount>> =
+        childDao.watchMember1AncestralDistrictCounts()
+
+    override fun watchTotalChildren(): Flow<Int> = childDao.watchTotalChildren()
 
 
 }
-
-//package com.example.zionkids.domain.repositories.offline
-//
-//// <app/src/main/java/com/example/zionkids/domain/repositories/online/ChildrenRepositoryOffline.kt>
-//// /// CHANGED: new offline-first repository that uses Room (ChildDao) only; same interface, zero Firestore calls.
-//// before → after (new file)
-//
-//
-//import com.example.zionkids.data.model.Child
-////import com.example.zionkids.data.model.ChildDao
-//import com.example.zionkids.data.model.EducationPreference
-//import com.example.zionkids.data.model.Reply
-//import com.google.firebase.Timestamp
-//import javax.inject.Inject
-//import javax.inject.Singleton
-//import kotlinx.coroutines.Dispatchers
-//import kotlinx.coroutines.flow.Flow
-//import kotlinx.coroutines.flow.combine
-//import kotlinx.coroutines.flow.flowOn
-//
-//import com.example.zionkids.data.local.dao.ChildDao
-//
-//
-//data class ChildrenSnapshot(
-//    val children: List<Child>,
-//    val fromCache: Boolean,        // true = served from local cache (offline or warming up)
-//    val hasPendingWrites: Boolean  // true = local changes not yet synced
-//)
-//
-//interface OfflineChildrenRepository {
-//    suspend fun getChildFast(id: String): Child?
-//    fun streamChildren(): Flow<List<Child>>
-//    suspend fun upsert(child: Child, isNew: Boolean): String
-//    suspend fun getAll(): List<Child>
-//    suspend fun getAllNotGraduated(): List<Child>
-//    fun streamAllNotGraduated(): Flow<ChildrenSnapshot>
-//    //    suspend fun deleteChild(id: String)
-//// (optional) fire-and-forget offline version
-//    suspend fun deleteChildAndAttendances(childId: String)
-//
-//    fun streamByEducationPreference(pref: EducationPreference): Flow<ChildrenSnapshot>
-//
-//    fun streamByEducationPreferenceResilient(pref: EducationPreference): Flow<ChildrenSnapshot>
-//
-//    suspend fun getByEducationPreference(pref: EducationPreference): List<Child>
-//
-//
-//}
-//@Singleton
-//class OfflineChildrenRepositoryImpl @Inject constructor(
-//    private val childDao: ChildDao
-//) : OfflineChildrenRepository {
-//
-//    override suspend fun getChildFast(id: String): Child? =
-//        childDao.getById(id)
-//
-//    override fun streamChildren(): Flow<List<Child>> =
-//        childDao.observeAllActive()
-//
-//    override suspend fun upsert(child: Child, isNew: Boolean): String {
-//        val id = child.childId
-//        require(id.isNotBlank()) { "childId required (generate one before saving)" }
-//        val now = Timestamp.now()
-//        val nextVersion = (child.version + 1).coerceAtLeast(1)
-//        childDao.upsert(
-//            child.copy(
-//                isDirty = true,
-//                isDeleted = false,
-//                updatedAt = now,
-//                version = nextVersion
-//            )
-//        )
-//        return id
-//    }
-//
-//    override suspend fun getAll(): List<Child> =
-//        childDao.getAllActive()
-//
-//    override suspend fun getAllNotGraduated(): List<Child> =
-//        childDao.getAllByGraduated(Reply.NO)
-//
-//    override fun streamAllNotGraduated(): Flow<ChildrenSnapshot> =
-//        combine(
-//            childDao.observeAllByGraduated(Reply.NO),
-//            childDao.observeDirtyCount()
-//        ) { list, dirtyCount ->
-//            ChildrenSnapshot(
-//                children = list,
-//                fromCache = true,               // Room is the local cache / source of truth
-//                hasPendingWrites = dirtyCount > 0
-//            )
-//        }.flowOn(Dispatchers.IO)
-//
-//    override suspend fun deleteChildAndAttendances(childId: String) {
-//        // Offline-only: mark tombstone; any server-side cascade handled by future sync worker.
-//        childDao.softDelete(childId, Timestamp.now())
-//    }
-//
-//    override fun streamByEducationPreference(pref: EducationPreference): Flow<ChildrenSnapshot> =
-//        combine(
-//            childDao.observeByEducationPreference(pref),
-//            childDao.observeDirtyCount()
-//        ) { list, dirtyCount ->
-//            ChildrenSnapshot(
-//                children = list.filter { it.graduated == Reply.NO },
-//                fromCache = true,
-//                hasPendingWrites = dirtyCount > 0
-//            )
-//        }.flowOn(Dispatchers.IO)
-//
-//    override fun streamByEducationPreferenceResilient(pref: EducationPreference): Flow<ChildrenSnapshot> =
-//        combine(
-//            streamByEducationPreference(pref),
-//            streamAllNotGraduated()
-//        ) { filtered, all ->
-//            if (filtered.children.isEmpty() && all.children.isNotEmpty()) {
-//                filtered.copy(
-//                    children = all.children.filter { it.educationPreference == pref },
-//                    fromCache = true
-//                )
-//            } else filtered
-//        }
-//
-//    override suspend fun getByEducationPreference(pref: EducationPreference): List<Child> =
-//        childDao.getAllActive().filter { it.educationPreference == pref && it.graduated == Reply.NO }
-//}

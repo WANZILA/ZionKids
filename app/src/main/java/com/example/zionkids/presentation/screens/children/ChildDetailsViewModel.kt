@@ -1,14 +1,9 @@
-package com.example.zionkids.presentation.viewModels.children
+package com.example.zionkids.presentation.screens.children
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.example.zionkids.data.model.Child
-import com.example.zionkids.domain.repositories.online.ChildrenRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -31,7 +26,7 @@ class ChildDetailsViewModel @Inject constructor(
 //    private val repo: ChildrenRepository
     private val repo: OfflineChildrenRepository,
     private val childDao: ChildDao,
-    @ApplicationContext private val appContext: android.content.Context,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     // one-shot events (navigation/snacks)

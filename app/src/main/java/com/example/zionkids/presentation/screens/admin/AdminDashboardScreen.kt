@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -19,13 +18,10 @@ import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 //import com.example.zionkids.presentation.screens.admin.StatCard
 //import com.example.zionkids.presentation.screens.children.StatCard
-import com.example.zionkids.presentation.viewModels.AdminDashboardViewModel
-import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.google.firebase.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
 import com.google.firebase.Timestamp
-import com.google.firebase.crashlytics.BuildConfig
 import com.google.firebase.crashlytics.crashlytics
 
 @OptIn(ExperimentalMaterial3Api::class)

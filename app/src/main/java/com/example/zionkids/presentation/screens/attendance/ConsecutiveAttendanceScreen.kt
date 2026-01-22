@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.zionkids.data.model.AttendanceStatus
-import com.example.zionkids.presentation.viewModels.attendance.ConsecutiveAttendanceViewModel
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -319,7 +318,7 @@ fun ConsecutiveAttendanceScreen(
 
 @Composable
 private fun PresentList(
-    present: List<com.example.zionkids.presentation.viewModels.attendance.PresentCount>,
+    present: List<PresentCount>,
     eventLabels: List<String>,
     listState: LazyListState
 ) {
@@ -361,7 +360,7 @@ private fun PresentList(
 
 @Composable
 private fun AbsentList(
-    absent: List<com.example.zionkids.presentation.viewModels.attendance.AbsenceStreak>,
+    absent: List<AbsenceStreak>,
     eventLabels: List<String>,
     listState: LazyListState
 ) {
@@ -403,7 +402,7 @@ private fun AbsentList(
 
 @Composable
 private fun ReasonsList(
-    reasons: List<com.example.zionkids.presentation.viewModels.attendance.ReasonCount>,
+    reasons: List<ReasonCount>,
     listState: LazyListState
 ) {
     if (reasons.isEmpty()) {

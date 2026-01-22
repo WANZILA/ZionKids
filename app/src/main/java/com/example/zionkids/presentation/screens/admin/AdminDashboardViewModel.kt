@@ -1,7 +1,7 @@
 // <app/src/main/java/com/example/zionkids/presentation/viewModels/AdminDashboardViewModel.kt>
 // /// CHANGED: Read KPI counters via KpiDao.observe(...), and ensure keys exist on start.
 
-package com.example.zionkids.presentation.viewModels
+package com.example.zionkids.presentation.screens.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
@@ -52,7 +53,7 @@ private fun todayKey(): String {
     val sdf = SimpleDateFormat("yyyyMMdd", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
-    return "events_day_" + sdf.format(java.util.Date())
+    return "events_day_" + sdf.format(Date())
 }
 
 @HiltViewModel

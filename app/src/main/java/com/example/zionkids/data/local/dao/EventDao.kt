@@ -17,6 +17,9 @@ import com.google.firebase.Timestamp  // /// CHANGED: use Firestore Timestamp in
 @Dao
 interface EventDao {
 
+    @Query("SELECT COUNT(*) FROM events WHERE isDeleted = 0")
+    fun observeActiveCount(): Flow<Int>
+
     // --- Observability / Paging (unchanged) ---
     @Query("""
         SELECT * FROM events

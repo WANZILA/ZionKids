@@ -3,7 +3,7 @@
 // /// CHANGED: always set isDirty=true and updatedAt=now on save.
 // /// CHANGED: never reset version to 0 on edits (carry existing version from Room).
 
-package com.example.zionkids.presentation.viewModels.events
+package com.example.zionkids.presentation.screens.events
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,7 +36,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.R
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.events.EventListViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale

@@ -2,9 +2,7 @@ package com.example.zionkids.presentation.viewModels.users
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.UserProfile
-import com.example.zionkids.domain.repositories.online.ChildrenRepository
 import com.example.zionkids.domain.repositories.online.UsersRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel

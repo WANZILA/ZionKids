@@ -140,8 +140,12 @@ sealed class Screen(val route: String) {
         fun createRoute(childId: String) = "child_details/$childId"
     }
 
+    object ChildDashboard : Screen("ChildDashboard?id={id}") {
+        fun view(id: String) = "ChildDashboard?id=$id"
+    }
+
     object Counts : Screen("counts/{mode}") {
-        fun forRegions() = "counts/REGIONS"
+        fun forRegions() = "counts/DISTRICTS"
         fun forStreets() = "counts/STREETS"
     }
 
@@ -167,6 +171,10 @@ sealed class Screen(val route: String) {
     }
 
     object ConsecutiveAttendanceList : Screen("consecutiveAttendanceScreen")
+
+    object ChildEventHistory : Screen("child_event_history/{id}") {
+        fun createRoute(id: String) = "child_event_history/$id"
+    }
 
 
     /**************

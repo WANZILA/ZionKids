@@ -1,4 +1,4 @@
-package com.example.zionkids.presentation.viewModels.attendance
+package com.example.zionkids.presentation.screens.attendance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +14,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject

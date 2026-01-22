@@ -1,4 +1,4 @@
-package com.example.zionkids.presentation.viewModels.reports
+package com.example.zionkids.presentation.screens.reports
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

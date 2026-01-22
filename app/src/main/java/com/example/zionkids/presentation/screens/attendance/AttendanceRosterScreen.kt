@@ -25,9 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 //import com.example.zionkids.presentation.screens.events.dayFmt
-import com.example.zionkids.presentation.screens.widgets.BulkConfirmDialog
-import com.example.zionkids.presentation.viewModels.attendance.AttendanceRosterViewModel
-import com.example.zionkids.presentation.viewModels.attendance.RosterChild
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat

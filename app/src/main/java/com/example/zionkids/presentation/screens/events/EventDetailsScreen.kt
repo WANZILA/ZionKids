@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.presentation.screens.widgets.DeleteIconWithConfirm
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.events.EventDetailsViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale

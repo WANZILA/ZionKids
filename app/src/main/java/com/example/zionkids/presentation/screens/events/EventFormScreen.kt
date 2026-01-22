@@ -39,9 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.zionkids.data.model.EventStatus
-import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.events.EventFormUIState
-import com.example.zionkids.presentation.viewModels.events.EventFormViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat

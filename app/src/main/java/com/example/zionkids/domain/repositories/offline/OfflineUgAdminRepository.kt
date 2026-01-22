@@ -1,5 +1,6 @@
 package com.example.zionkids.domain.repositories.offline
 
+import com.example.zionkids.core.Utils.picker.PickerOption
 import com.example.zionkids.data.model.*
 import kotlinx.coroutines.flow.Flow
 
@@ -27,4 +28,33 @@ interface OfflineUgAdminRepository {
     suspend fun insertSubcounties(items: List<UgSubCountyEntity>)
     suspend fun insertParishes(items: List<UgParishEntity>)
     suspend fun insertVillages(items: List<UgVillageEntity>)
+
+    // =========================
+    // Streets from children.street (Room only)
+    // =========================
+    fun watchStreetNames(): Flow<List<String>>
+    suspend fun getStreetNames(): List<String>
+
+    fun watchStreetNamesMostUsed(): Flow<List<String>>
+    suspend fun getStreetNamesMostUsed(): List<String>
+
+    fun streetsPickerWatchAll(): Flow<List<PickerOption>>
+    fun streetsPickerWatchMostUsed(): Flow<List<PickerOption>>
+
+    suspend fun searchStreetNamesByPrefix(prefix: String, limit: Int = 20): List<String>
+
+    // =========================
+// Member1 Ancestral District (Room only)
+// =========================
+    fun watchMember1AncestralDistricts(): Flow<List<String>>
+    suspend fun getMember1AncestralDistricts(): List<String>
+
+    fun watchMember1AncestralDistrictsMostUsed(): Flow<List<String>>
+    suspend fun getMember1AncestralDistrictsMostUsed(): List<String>
+
+    fun member1AncestralDistrictPickerWatchAll(): Flow<List<PickerOption>>
+    fun member1AncestralDistrictPickerWatchMostUsed(): Flow<List<PickerOption>>
+
+    suspend fun searchMember1AncestralDistrictsByPrefix(prefix: String, limit: Int = 20): List<String>
+
 }

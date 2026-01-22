@@ -3,7 +3,6 @@ package com.example.zionkids.presentation.screens.children
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +17,6 @@ import com.example.zionkids.data.model.ClassGroup
 import com.example.zionkids.data.model.EducationPreference
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.children.ChildrenDashboardViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.ExpandLess
@@ -182,12 +180,12 @@ fun ChildrenDashboardScreen(
                                 modifier = Modifier.weight(1f),
                                 onClick = toAllStreets
                             )
-                            StatCard(
-                                title = "All",
-                                value = "Regions",
-                                modifier = Modifier.weight(1f),
-                                onClick = toAllRegions
-                            )
+//                            StatCard(
+//                                title = "All",
+//                                value = "Regions",
+//                                modifier = Modifier.weight(1f),
+//                                onClick = toAllRegions
+//                            )
                         }
                     }
                 }
@@ -368,7 +366,7 @@ private fun labelForClassGroupDashboard(v: ClassGroup): String = when (v) {
 //import com.example.zionkids.data.model.EducationPreference
 //import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 //import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-//import com.example.zionkids.presentation.viewModels.children.ChildrenDashboardViewModel
+//import com.example.zionkids.presentation.screens.children.ChildrenDashboardViewModel
 //
 //@OptIn(ExperimentalMaterial3Api::class)
 //@Composable

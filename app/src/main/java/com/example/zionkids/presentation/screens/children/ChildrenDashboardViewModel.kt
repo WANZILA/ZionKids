@@ -1,4 +1,4 @@
-package com.example.zionkids.presentation.viewModels.children
+package com.example.zionkids.presentation.screens.children
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,8 +6,6 @@ import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.model.Child
 import com.example.zionkids.data.model.ClassGroup
 import com.example.zionkids.data.model.EducationPreference
-import com.example.zionkids.data.model.RegistrationStatus
-import com.example.zionkids.data.model.Reply
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*

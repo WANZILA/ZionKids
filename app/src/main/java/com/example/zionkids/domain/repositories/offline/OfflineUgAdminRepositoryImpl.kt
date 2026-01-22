@@ -1,6 +1,6 @@
 package com.example.zionkids.data.repositories.offline
 
-//import com.example.zionkids.data.dao.UgAdminDao
+import com.example.zionkids.core.Utils.picker.PickerOption
 import com.example.zionkids.data.local.dao.UgAdminDao
 import com.example.zionkids.data.model.*
 import com.example.zionkids.domain.repositories.offline.OfflineUgAdminRepository
@@ -31,4 +31,52 @@ class OfflineUgAdminRepositoryImpl @Inject constructor(
     override suspend fun insertSubcounties(items: List<UgSubCountyEntity>) = dao.insertSubcounties(items)
     override suspend fun insertParishes(items: List<UgParishEntity>) = dao.insertParishes(items)
     override suspend fun insertVillages(items: List<UgVillageEntity>) = dao.insertVillages(items)
+
+    // =========================
+    // Streets from children.street (Room only)
+    // =========================
+
+    override fun watchStreetNames(): Flow<List<String>> = dao.watchStreetNames()
+    override suspend fun getStreetNames(): List<String> = dao.getStreetNames()
+
+    override fun watchStreetNamesMostUsed(): Flow<List<String>> = dao.watchStreetNamesMostUsed()
+    override suspend fun getStreetNamesMostUsed(): List<String> = dao.getStreetNamesMostUsed()
+
+    override fun streetsPickerWatchAll(): Flow<List<PickerOption>> = dao.streetsPickerWatchAll()
+    override fun streetsPickerWatchMostUsed(): Flow<List<PickerOption>> = dao.streetsPickerWatchMostUsed()
+
+    override suspend fun searchStreetNamesByPrefix(prefix: String, limit: Int): List<String> {
+        val p = prefix.trim()
+        if (p.isEmpty()) return emptyList()
+        return dao.searchStreetNamesByPrefix(p, limit)
+    }
+
+    // =========================
+// Member1 Ancestral District (Room only)
+// =========================
+
+    override fun watchMember1AncestralDistricts(): Flow<List<String>> =
+        dao.watchMember1AncestralDistricts()
+
+    override suspend fun getMember1AncestralDistricts(): List<String> =
+        dao.getMember1AncestralDistricts()
+
+    override fun watchMember1AncestralDistrictsMostUsed(): Flow<List<String>> =
+        dao.watchMember1AncestralDistrictsMostUsed()
+
+    override suspend fun getMember1AncestralDistrictsMostUsed(): List<String> =
+        dao.getMember1AncestralDistrictsMostUsed()
+
+    override fun member1AncestralDistrictPickerWatchAll(): Flow<List<PickerOption>> =
+        dao.member1AncestralDistrictPickerWatchAll()
+
+    override fun member1AncestralDistrictPickerWatchMostUsed(): Flow<List<PickerOption>> =
+        dao.member1AncestralDistrictPickerWatchMostUsed()
+
+    override suspend fun searchMember1AncestralDistrictsByPrefix(prefix: String, limit: Int): List<String> {
+        val p = prefix.trim()
+        if (p.isEmpty()) return emptyList()
+        return dao.searchMember1AncestralDistrictsByPrefix(p, limit)
+    }
+
 }

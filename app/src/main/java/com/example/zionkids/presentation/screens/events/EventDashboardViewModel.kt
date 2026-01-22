@@ -1,4 +1,4 @@
-package com.example.zionkids.presentation.viewModels.events
+package com.example.zionkids.presentation.screens.events
 
 
 import androidx.lifecycle.ViewModel
@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
 import com.example.zionkids.domain.repositories.offline.OfflineEventsRepository
-import com.example.zionkids.domain.repositories.online.EventsRepository
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*

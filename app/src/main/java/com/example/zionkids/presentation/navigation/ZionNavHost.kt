@@ -23,6 +23,8 @@ import com.example.zionkids.presentation.screens.admin.UserFormScreen
 import com.example.zionkids.presentation.screens.admin.UserListScreen
 import com.example.zionkids.presentation.screens.attendance.*
 import com.example.zionkids.presentation.screens.children.*
+import com.example.zionkids.presentation.screens.children.childAttendanceHist.ChildEventHistoryScreen
+import com.example.zionkids.presentation.screens.children.childDashboard.ChildDashboardScreen
 import com.example.zionkids.presentation.screens.events.*
 import com.example.zionkids.presentation.screens.reports.ReportScreen
 import com.example.zionkids.presentation.screens.splash.SplashScreen
@@ -423,11 +425,11 @@ fun ZionAppNavHost(
                             onItemClick = { name ->
                                 when (modeArg) {
                                     "STREETS" -> navController.navigate(Screen.ChildrenList.byStreet(name)) {
-                                        popUpTo(Screen.ChildrenList.route) { inclusive = true }
+                                        popUpTo(Screen.Counts.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
-                                    "REGIONS" -> navController.navigate(Screen.ChildrenList.byRegion(name)) {
-                                        popUpTo(Screen.ChildrenList.route) { inclusive = true }
+                                    "DISTRICTS" -> navController.navigate(Screen.ChildrenList.byRegion(name)) {
+                                        popUpTo(Screen.Counts.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                     else -> {}
@@ -463,8 +465,8 @@ fun ZionAppNavHost(
                                     launchSingleTop = true
                                 }
                             },
-                            onChildClick = { childIdArg ->
-                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
+                            toChildDashboard = { childIdArg ->
+                                navController.navigate(Screen.ChildDashboard.view(childIdArg)) {
                                     popUpTo(Screen.ChildrenList.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
@@ -531,7 +533,7 @@ fun ZionAppNavHost(
                                 }
                             },
                             toChildrenDashboard = {
-                                navController.navigate(Screen.ChildrenDashboard.route) {
+                                navController.navigate(Screen.ChildDashboard.view(childId)) {
                                     popUpTo(Screen.ChildDetails.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
@@ -544,6 +546,65 @@ fun ZionAppNavHost(
                             },
                         )
                     }
+
+                    /**
+                     * Single clientDasboard
+                     */
+                    composable(
+                        Screen.ChildDashboard.route,
+                        arguments = listOf(navArgument("id") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        })
+                    ) { backStackEntry ->
+//        val id = backStackEntry.arguments?.getString("id")?: 0
+                        val id = backStackEntry.arguments?.getString("id") ?: return@composable
+
+                        ChildDashboardScreen(
+                            childIdArg = id,
+                            toEditChild = {childIdArg ->
+                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            toEvents = { childIdArg ->
+//                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
+//                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+//                                    launchSingleTop = true
+//                                }
+                            },
+                            toAttendance = { childIdArg ->
+                                navController.navigate(Screen.ChildEventHistory.createRoute(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            toQa = { childIdArg ->
+                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+
+                            },
+                            toObservations = { childIdArg ->
+                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+
+                            },
+                            navigateUp = {
+                                navController.navigate(Screen.ChildrenList.all()) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+
+                            },
+                        )
+                    }
+
 
 
 
@@ -723,6 +784,32 @@ fun ZionAppNavHost(
                     }
 
 
+                    composable(
+                        Screen.ChildEventHistory.route,
+                        arguments = listOf(navArgument("id") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        })
+                    ) { backStackEntry ->
+//        val id = backStackEntry.arguments?.getString("id")?: 0
+                        val id = backStackEntry.arguments?.getString("id") ?: return@composable
+
+                        ChildEventHistoryScreen(
+                            childIdArg = id,
+                            navigateUp = {
+                                navController.navigate(Screen.ChildDashboard.view(id)) {
+                                    popUpTo(Screen.ChildEventHistory.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            onEventClick = {
+
+                            },
+
+                        )
+
+                    }
                     /*****
                      * Technical skills
                      *

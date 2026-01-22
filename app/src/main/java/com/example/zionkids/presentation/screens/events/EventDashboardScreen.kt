@@ -26,8 +26,6 @@ import com.example.zionkids.data.model.Event
 import com.example.zionkids.data.model.EventStatus
 import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
-import com.example.zionkids.presentation.viewModels.events.EventDashboardViewModel
-import com.example.zionkids.presentation.viewModels.events.EventTab
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale

@@ -13,6 +13,10 @@ import com.example.zionkids.data.model.Reply
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.Flow
 
+data class KeyCount(
+    val name: String,
+    val count: Int
+)
 @Dao
 interface ChildDao {
 
@@ -319,5 +323,35 @@ WHERE childId = :id
 //    @Query("SELECT COUNT(*) FROM children WHERE isDeleted = 0")
 //    suspend fun peekLocalCount(): Int
 //
+
+  //for displaying the streets and districts
+
+    @Query("""
+    SELECT TRIM(street) AS name, COUNT(*) AS count
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(street) != ''
+    GROUP BY name
+    ORDER BY count DESC, name COLLATE NOCASE
+""")
+    fun watchStreetCounts(): Flow<List<KeyCount>>
+
+    @Query("""
+    SELECT TRIM(member1AncestralDistrict) AS name, COUNT(*) AS count
+    FROM children
+    WHERE isDeleted = 0
+      AND TRIM(member1AncestralDistrict) != ''
+    GROUP BY name
+    ORDER BY count DESC, name COLLATE NOCASE
+""")
+    fun watchMember1AncestralDistrictCounts(): Flow<List<KeyCount>>
+
+    @Query("""
+    SELECT COUNT(*)
+    FROM children
+    WHERE isDeleted = 0
+""")
+    fun watchTotalChildren(): Flow<Int>
+
 
 }

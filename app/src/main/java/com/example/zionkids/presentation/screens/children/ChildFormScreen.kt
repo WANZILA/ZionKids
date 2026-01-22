@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.zionkids.data.model.*
 import com.example.zionkids.presentation.screens.widgets.PickerDialog
-import com.example.zionkids.presentation.viewModels.children.ChildFormUiState
-import com.example.zionkids.presentation.viewModels.children.ChildFormViewModel
+import com.example.zionkids.presentation.screens.children.ChildFormUiState
+import com.example.zionkids.presentation.screens.children.ChildFormViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale
