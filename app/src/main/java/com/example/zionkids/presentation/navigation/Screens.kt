@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Login : Screen("login")
-    object AdminDashboard : Screen("home")
+    object HomeDashboard : Screen("home")
     object ChildrenDashboard : Screen("children")
     object Migration: Screen("migration")
 
@@ -144,6 +144,33 @@ sealed class Screen(val route: String) {
         fun view(id: String) = "ChildDashboard?id=$id"
     }
 
+    // /// ADDED: Question Bank
+    object QuestionBank : Screen("question_bank")
+
+    object QuestionForm : Screen("question_form?questionId={questionId}") {
+        fun newQuestion() = "question_form"
+        fun edit(id: String) = "question_form?questionId=$id"
+    }
+
+
+
+    /***
+     * Admin Dashboard
+     */
+
+    object AdminDashboard : Screen("admin_dashboard")
+    object ChildAssessmentHistory : Screen("child_assessment_history/{childId}?mode={mode}") {
+        fun qa(childId: String) = "child_assessment_history/$childId?mode=QA"
+        fun observations(childId: String) = "child_assessment_history/$childId?mode=OBS"
+        fun all(childId: String) = "child_assessment_history/$childId?mode=ALL"
+    }
+
+    object ChildAssessmentDetail : Screen("child_assessment_detail/{childId}/{generalId}?mode={mode}") {
+        fun open(childId: String, generalId: String, mode: String = "ALL") =
+            "child_assessment_detail/$childId/$generalId?mode=$mode"
+    }
+
+
     object Counts : Screen("counts/{mode}") {
         fun forRegions() = "counts/DISTRICTS"
         fun forStreets() = "counts/STREETS"
@@ -214,7 +241,7 @@ sealed class Screen(val route: String) {
 //sealed class Screen(val route: String) {
 //    object Splash : Screen("splash")
 //    object Login : Screen("login")
-//    object AdminDashboard: Screen("home")
+//    object HomeDashboard: Screen("home")
 //    object ChildrenDashboard : Screen("children")
 ////    object Profile : Screen("profile")
 //    object ChildForm : Screen("childForm?childId={childId}"){

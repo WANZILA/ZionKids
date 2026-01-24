@@ -46,6 +46,17 @@ annotation class TechnicalSkills
 @Retention(AnnotationRetention.BINARY)
 annotation class Streets
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class AssessmentQuestionsRef
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class AssessmentAnswersRef
+
+
+
+
 
 
 

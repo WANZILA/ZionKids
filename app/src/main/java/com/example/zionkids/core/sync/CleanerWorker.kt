@@ -1,14 +1,11 @@
-// app/src/main/java/com/example/zionkids/core/sync/CleanerWorker.kt
-// /// CHANGED: Fix fallback constructor (missing comma + wrong arg order).
-// /// CHANGED: Use Timestamp(cutoffSeconds, cutoffNanos) to avoid Date ctor mismatch.
-// /// CHANGED: Add logs + keep behavior the same.
-
 package com.example.zionkids.core.sync
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.example.zionkids.data.local.dao.AssessmentAnswerDao // /// ADDED
+import com.example.zionkids.data.local.dao.AssessmentQuestionDao
 import com.example.zionkids.data.local.dao.AttendanceDao
 import com.example.zionkids.data.local.dao.ChildDao
 import com.example.zionkids.data.local.dao.EventDao
@@ -30,29 +27,34 @@ class CleanerWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val childDao: ChildDao,
     private val eventDao: EventDao,
-    private val attendanceDao: AttendanceDao
+    private val attendanceDao: AttendanceDao,
+    private val assessmentAnswerDao: AssessmentAnswerDao, // /// ADDED
+    private val assessmentQuestionDao: AssessmentQuestionDao // /// ADDED
+
 ) : CoroutineWorker(appContext, params) {
 
     companion object {
-        // retention window for tombstones
         const val KEY_RETENTION_DAYS = "retentionDays"
         private const val DEFAULT_RETENTION_DAYS = 0L
 
-        // /// CHANGED: output keys so UI can read how many rows were deleted
         const val OUT_DELETED_CHILDREN = "deleted_children"
         const val OUT_DELETED_ATTENDANCES = "deleted_attendances"
         const val OUT_DELETED_EVENTS = "deleted_events"
+        const val OUT_DELETED_ASSESSMENT_ANSWERS = "deleted_assessment_answers" // /// ADDED
+        const val OUT_DELETED_ASSESSMENT_QUESTIONS = "deleted_assessment_questions" // /// ADDED
+
         const val OUT_DELETED_TOTAL = "deleted_total"
     }
 
-
-    // ---- Fallback path when HiltWorkerFactory isn’t used ----
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface WorkerDeps {
         fun childDao(): ChildDao
         fun attendanceDao(): AttendanceDao
         fun eventDao(): EventDao
+        fun assessmentAnswerDao(): AssessmentAnswerDao // /// ADDED
+        fun assessmentQuestionDao(): AssessmentQuestionDao // /// ADDED
+
     }
 
     constructor(appContext: Context, params: WorkerParameters) : this(
@@ -60,7 +62,10 @@ class CleanerWorker @AssistedInject constructor(
         params,
         EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).childDao(),
         EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).eventDao(),
-        EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).attendanceDao()
+        EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).attendanceDao(),
+        EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).assessmentAnswerDao(), // /// ADDED
+                EntryPointAccessors.fromApplication(appContext, WorkerDeps::class.java).assessmentQuestionDao()
+
     )
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -70,29 +75,32 @@ class CleanerWorker @AssistedInject constructor(
 
             val cutoffMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(retentionDays)
 
-            // Firestore Timestamp uses seconds+nanos (not java.util.Date in your imports here)
             val cutoffSeconds = cutoffMs / 1000L
             val cutoffNanos = ((cutoffMs % 1000L) * 1_000_000L).toInt()
             val cutoff = Timestamp(cutoffSeconds, cutoffNanos)
 
             Timber.i("CleanerWorker: start retentionDays=%d cutoff=%s", retentionDays, cutoff)
 
-            // Clean tables that have tombstones (isDeleted/isDirty/deletedAt)
             val deletedChildren = childDao.hardDeleteOldTombstones(cutoff)
             val deletedAttendances = attendanceDao.hardDeleteOldTombstones(cutoff)
             val deletedEvents = eventDao.hardDeleteOldTombstones(cutoff)
+            val deletedAssessmentAnswers = assessmentAnswerDao.hardDeleteOldTombstones(cutoff) // /// ADDED
+            val deletedAssessmentQuestions = assessmentQuestionDao.hardDeleteOldTombstones(cutoff) // /// ADDED
 
-            val deletedTotal = deletedChildren + deletedAttendances + deletedEvents
+            val deletedTotal =
+                deletedChildren + deletedAttendances + deletedEvents + deletedAssessmentAnswers + deletedAssessmentQuestions
 
             Timber.i(
-                "CleanerWorker: deleted children=%d attendances=%d events=%d total=%d",
-                deletedChildren, deletedAttendances, deletedEvents, deletedTotal
+                "CleanerWorker: deleted children=%d attendances=%d events=%d assessment_answers=%d deletedAssessmentQuestions=%d total=%d",
+                deletedChildren, deletedAttendances, deletedEvents, deletedAssessmentAnswers, deletedAssessmentQuestions, deletedTotal
             )
 
             val out = androidx.work.Data.Builder()
                 .putInt(OUT_DELETED_CHILDREN, deletedChildren)
                 .putInt(OUT_DELETED_ATTENDANCES, deletedAttendances)
                 .putInt(OUT_DELETED_EVENTS, deletedEvents)
+                .putInt(OUT_DELETED_ASSESSMENT_ANSWERS, deletedAssessmentAnswers) // /// ADDED
+                .putInt(OUT_DELETED_ASSESSMENT_QUESTIONS, deletedAssessmentQuestions)
                 .putInt(OUT_DELETED_TOTAL, deletedTotal)
                 .build()
 

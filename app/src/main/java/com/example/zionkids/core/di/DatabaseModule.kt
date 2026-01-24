@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.zionkids.core.sync.SyncCoordinatorScheduler
+import com.example.zionkids.data.local.dao.AssessmentTaxonomyDao
 //import com.example.zionkids.data.dao.UgAdminDao
 import com.example.zionkids.data.local.dao.AttendanceDao
 import com.example.zionkids.data.local.dao.ChildDao
@@ -13,6 +14,7 @@ import com.example.zionkids.data.local.dao.EventDao
 import com.example.zionkids.data.local.dao.KpiDao
 import com.example.zionkids.data.local.dao.UgAdminDao
 import com.example.zionkids.data.local.db.AppDatabase
+import com.example.zionkids.data.local.seed.AssessmentTaxonomySeeder
 import com.example.zionkids.data.local.seed.UgAdminSeeder
 //import com.example.zionkids.data.db.AppDatabase
 //import com.example.zionkids.data.model.ChildDao
@@ -83,8 +85,8 @@ object DatabaseModule {
     fun provideDb(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
-            // /// CHANGED: keep debug view
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+// /// CHANGED: keep debug view
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     db.execSQL(CREATE_CHILDREN_DEBUG_VIEW)
@@ -106,6 +108,7 @@ object DatabaseModule {
             .also { db ->
                 CoroutineScope(Dispatchers.IO).launch {
                     UgAdminSeeder(context, db.ugAdminDao()).seedIfEmpty()
+                    AssessmentTaxonomySeeder(db.assessmentTaxonomyDao()).seedIfEmpty()
                 }
             }
 //        fun provideDb(@ApplicationContext context: Context): AppDatabase =
@@ -148,5 +151,19 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSyncCoordinatorScheduler(): SyncCoordinatorScheduler = SyncCoordinatorScheduler
+
+    @Provides
+    @Singleton
+    fun provideAssessmentQuestionDao(db: AppDatabase) = db.assessmentQuestionDao()
+
+    @Provides
+    @Singleton
+    fun provideAssessmentAnswerDao(db: AppDatabase) = db.assessmentAnswerDao()
+
+    @Provides
+    @Singleton
+    fun provideAssessmentTaxonomyDao(db: AppDatabase): AssessmentTaxonomyDao =
+        db.assessmentTaxonomyDao()
+
 
 }

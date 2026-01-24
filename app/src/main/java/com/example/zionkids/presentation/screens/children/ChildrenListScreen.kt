@@ -60,6 +60,8 @@ import java.util.Locale
 /// ADDED (imports)
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.LazyPagingItems
+import com.example.zionkids.core.utils.DatesUtils.asHuman
+
 //import com.example.zionkids.data.local.projection.ChildRow as UiChildRow  // alias to avoid name clash
 
 
@@ -379,10 +381,7 @@ private fun ChildrenPagingList(
 }
 
 /** Pretty-print a Firestore Timestamp, e.g. "29 Aug 2025 • 14:05". */
-private fun Timestamp.asHuman(): String {
-    val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
-    return sdf.format(toDate())
-}
+
 
 //package com.example.zionkids.presentation.screens.children
 //

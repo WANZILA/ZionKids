@@ -1,6 +1,10 @@
 package com.example.zionkids.core.di
 
 import com.example.zionkids.data.repositories.offline.OfflineUgAdminRepositoryImpl
+import com.example.zionkids.domain.repositories.offline.OfflineAssessmentQuestionRepository
+import com.example.zionkids.domain.repositories.offline.OfflineAssessmentQuestionRepositoryImpl
+import com.example.zionkids.domain.repositories.offline.OfflineAssessmentRepository
+import com.example.zionkids.domain.repositories.offline.OfflineAssessmentRepositoryImpl
 import com.example.zionkids.domain.repositories.offline.OfflineAttendanceRepository
 import com.example.zionkids.domain.repositories.offline.OfflineAttendanceRepositoryImpl
 import com.example.zionkids.domain.repositories.offline.OfflineChildrenRepository
@@ -40,6 +44,20 @@ abstract class OfflineRepositoryModule {
     abstract fun bindOfflineUgAdminRepository(
         impl: OfflineUgAdminRepositoryImpl
     ): OfflineUgAdminRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOfflineAssessmentQuestionRepository(
+        impl: OfflineAssessmentQuestionRepositoryImpl
+    ): OfflineAssessmentQuestionRepository
+
+
+    @Binds
+    @Singleton
+    abstract fun bindOfflineAssessmentRepository(
+        impl: OfflineAssessmentRepositoryImpl
+    ): OfflineAssessmentRepository
+
 //    @Binds
 //    @Singleton
 //    abstract fun bindOfflineKpiRepository(impl: KpiRepositoryImpl): OfflineEventsRepository

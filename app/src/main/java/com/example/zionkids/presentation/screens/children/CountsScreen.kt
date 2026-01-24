@@ -64,7 +64,7 @@ fun CountsScreen(
             ) {
                 Text("Total children: ${ui.totalChildren}")
                 Spacer(Modifier.width(12.dp))
-                Text("Unique: ${ui.uniqueKeys}")
+//                Text("Unique: ${ui.uniqueKeys}")
                 Spacer(Modifier.width(12.dp))
                 Text("Showing ${shown.size} of ${ui.uniqueKeys}")
             }

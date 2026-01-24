@@ -20,6 +20,8 @@ interface AttendanceDao {
     @Upsert
     suspend fun upsertAll(list: List<Attendance>)
 
+    @Query("SELECT * FROM attendances")
+    fun streamAllAdmin(): Flow<List<Attendance>>
     // ---------- Single reads ----------
     @Query("SELECT * FROM attendances WHERE attendanceId = :id LIMIT 1")
     suspend fun getOnce(id: String): Attendance?
@@ -210,22 +212,29 @@ interface AttendanceDao {
     fun observeAttendedEventsForChild(childId: String): Flow<List<EventAttendanceRow>>
 
     @Query("""
-    SELECT 
-        e.eventId AS eventId,
-        e.title AS title,
+    SELECT
+        e.eventId   AS eventId,
+        e.title     AS title,
         e.eventDate AS eventDate,
-        e.teamName AS teamName,
-        e.location AS location,
-        a.status AS status,
-        a.notes AS notes
-    FROM attendances a
-    JOIN events e ON e.eventId = a.eventId
-    WHERE a.isDeleted = 0
-      AND e.isDeleted = 0
-      AND a.childId = :childId
-      AND a.status = 'ABSENT'
-      AND TRIM(IFNULL(a.notes, '')) != ''
-    ORDER BY e.eventDate DESC, a.updatedAt DESC
+        e.teamName  AS teamName,
+        e.location  AS location,
+        CASE
+            WHEN a.attendanceId IS NULL THEN 'ABSENT'
+            ELSE a.status
+        END AS status,
+        COALESCE(a.notes, '') AS notes
+    FROM events e
+    LEFT JOIN attendances a
+        ON a.eventId = e.eventId
+       AND a.childId = :childId
+       AND a.isDeleted = 0
+    WHERE e.isDeleted = 0
+      AND (
+          a.attendanceId IS NULL      -- no row recorded => treat as missed
+          OR a.status = 'ABSENT'      -- explicitly marked absent
+      )
+    ORDER BY e.eventDate DESC,
+             COALESCE(a.updatedAt, e.updatedAt) DESC
 """)
     fun observeMissedEventsForChildWithReason(childId: String): Flow<List<EventAttendanceRow>>
 

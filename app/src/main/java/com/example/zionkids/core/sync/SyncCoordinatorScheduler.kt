@@ -25,6 +25,10 @@ object SyncCoordinatorScheduler {
         //events
         EventSyncScheduler.enqueuePeriodicPush(ctx)
 
+        AssessmentQuestionSyncScheduler.enqueuePeriodicPull(ctx)
+
+        AssessmentAnswerSyncScheduler.enqueuePeriodicPull(ctx)
+
         // Cleaner: local tombstone cleanup
         CleanerScheduler.enqueuePeriodic(ctx, retentionDays = cleanerRetentionDays)
     }
@@ -38,6 +42,9 @@ object SyncCoordinatorScheduler {
 
         AttendanceSyncScheduler.enqueuePeriodicPush(ctx)
         EventSyncScheduler.enqueuePeriodicPull(ctx)
+        AssessmentQuestionSyncScheduler.enqueuePeriodicPush(ctx)
+        AssessmentAnswerSyncScheduler.enqueuePeriodicPush(ctx)
+        CleanerScheduler.enqueuePeriodic(ctx, cleanerRetentionDays)
 
 
     }
@@ -53,6 +60,8 @@ object SyncCoordinatorScheduler {
         ChildrenSyncScheduler.enqueuePushNow(ctx)
         AttendanceSyncScheduler.enqueuePushNow(ctx)
         EventSyncScheduler.enqueuePushNow(ctx)
+        AssessmentQuestionSyncScheduler.enqueuePushNow(ctx)
+        AssessmentAnswerSyncScheduler.enqueuePullNow(ctx)
         CleanerScheduler.enqueueNow(ctx, retentionDays = cleanerRetentionDays)
 
     }
@@ -67,8 +76,9 @@ object SyncCoordinatorScheduler {
         AttendanceSyncScheduler.enqueuePullNow(ctx)
 
         EventSyncScheduler.enqueuePullNow(ctx)
+        AssessmentQuestionSyncScheduler.enqueuePullNow(ctx)
+        AssessmentAnswerSyncScheduler.enqueuePullNow(ctx)
         CleanerScheduler.enqueueNow(ctx, retentionDays = cleanerRetentionDays)
-
 
     }
 }

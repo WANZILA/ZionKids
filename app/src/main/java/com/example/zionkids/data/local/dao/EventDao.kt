@@ -20,6 +20,9 @@ interface EventDao {
     @Query("SELECT COUNT(*) FROM events WHERE isDeleted = 0")
     fun observeActiveCount(): Flow<Int>
 
+    @Query("SELECT * FROM events")
+    fun streamAllAdmin(): Flow<List<Event>>
+
     // --- Observability / Paging (unchanged) ---
     @Query("""
         SELECT * FROM events

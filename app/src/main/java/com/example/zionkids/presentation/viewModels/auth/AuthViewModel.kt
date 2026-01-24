@@ -695,4 +695,36 @@ data class AuthUiState(
 ) {
     val perms: UserPermissions
         get() = permissionsForRoles(assignedRoles)
+
+    // ✅ role helpers (use these everywhere)
+    val isAdmin: Boolean
+        get() = assignedRoles.contains(AssignedRole.ADMIN)
+
+    val isLeader: Boolean
+        get() = assignedRoles.contains(AssignedRole.LEADER)
+
+    val isVolunteer: Boolean
+        get() = assignedRoles.contains(AssignedRole.VOLUNTEER)
+
+    val isViewer: Boolean
+        get() = assignedRoles.contains(AssignedRole.VIEWER)
+
+    val isSponsor: Boolean
+        get() = assignedRoles.contains(AssignedRole.SPONSOR)
+
+    val canSeeAdminScreens: Boolean
+        get() = isAdmin || isLeader
 }
+
+//data class AuthUiState(
+//    val email: String = "",
+//    val password: String = "",
+//    val loading: Boolean = false,
+//    val error: String? = null,
+//    val isLoggedIn: Boolean = false,
+//    val profile: UserProfile? = null,
+//    val assignedRoles: List<AssignedRole> = emptyList(),
+//) {
+//    val perms: UserPermissions
+//        get() = permissionsForRoles(assignedRoles)
+//}

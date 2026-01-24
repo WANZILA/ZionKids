@@ -14,15 +14,21 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.example.zionkids.data.model.AssignedRole
 import com.example.zionkids.data.model.Reply
 import com.example.zionkids.migration.MigrationJsonlAllInOneScreen
 import com.example.zionkids.presentation.screens.*
 import com.example.zionkids.presentation.screens.admin.AdminDashboardScreen
+import com.example.zionkids.presentation.screens.admin.HomeDashboardScreen
 import com.example.zionkids.presentation.screens.admin.UserDetailScreen
 import com.example.zionkids.presentation.screens.admin.UserFormScreen
 import com.example.zionkids.presentation.screens.admin.UserListScreen
+import com.example.zionkids.presentation.screens.admin.questions.QuestionBankScreen
+import com.example.zionkids.presentation.screens.admin.questions.QuestionFormScreen
 import com.example.zionkids.presentation.screens.attendance.*
 import com.example.zionkids.presentation.screens.children.*
+import com.example.zionkids.presentation.screens.children.assessments.ChildAssessmentDetailScreen
+import com.example.zionkids.presentation.screens.children.assessments.ChildAssessmentHistoryScreen
 import com.example.zionkids.presentation.screens.children.childAttendanceHist.ChildEventHistoryScreen
 import com.example.zionkids.presentation.screens.children.childDashboard.ChildDashboardScreen
 import com.example.zionkids.presentation.screens.events.*
@@ -32,6 +38,9 @@ import com.example.zionkids.presentation.screens.streets.StreetsScreen
 import com.example.zionkids.presentation.screens.technicalSkills.TechnicalSkillsScreen
 import com.example.zionkids.presentation.screens.users.UsersDashboardScreen
 import com.example.zionkids.presentation.viewModels.auth.AuthViewModel
+
+import kotlinx.coroutines.flow.first
+
 
 val LocalNavController = staticCompositionLocalOf<NavController?> { null }
 
@@ -53,6 +62,8 @@ fun ZionAppNavHost(
     // Admin-only destinations
     val adminOnly = remember { setOf(Screen.AdminUsers.route, Screen.Migration.route) }
 
+    val canManageQuestions = authUi.profile?.userRole == AssignedRole.ADMIN
+
     key(sessionKey) {
         // ⬇️ New NavController for this session
         val navController: NavHostController = rememberNavController()
@@ -63,37 +74,75 @@ fun ZionAppNavHost(
         // Show bottom bar only on these roots
         val bottomBarDestinations = remember {
             setOf(
-                Screen.AdminDashboard.route,
+                Screen.HomeDashboard.route,
                 Screen.ChildrenDashboard.route,
                 Screen.EventsDashboard.route,
                 Screen.AttendanceDashboard.route,
-                Screen.AdminUsers.route
+                Screen.AdminUsers.route,
+                Screen.AdminDashboard.route,
             )
         }
         fun shouldShowBottomBar(): Boolean =
             destination?.hierarchy?.any { it.route in bottomBarDestinations } == true
 
         // Redirect to Login when signed out (clear everything, don’t restore)
+//        LaunchedEffect(authUi.isLoggedIn) {
+//            if (!authUi.isLoggedIn) {
+//                navController.navigate(Screen.Login.route) {
+//                    popUpTo(0)
+//                    launchSingleTop = true
+//                    restoreState = false
+//                }
+//            }
+//        }
+        // ✅ Redirect to login ONLY after NavHost has set the graph
         LaunchedEffect(authUi.isLoggedIn) {
+            // Suspends until NavHost sets the graph and the first back stack entry exists
+            navController.currentBackStackEntryFlow.first()
+
             if (!authUi.isLoggedIn) {
-                navController.navigate(Screen.Login.route) {
+                navController.navigate("login") {
                     popUpTo(0)
                     launchSingleTop = true
-                    restoreState = false
                 }
             }
         }
 
-        // If roles change mid-session, nuke stack and land on AdminDashboard
+        // If roles change mid-session, nuke stack and land on HomeDashboard
         var lastRoles by remember { mutableStateOf(authUi.assignedRoles.toSet()) }
+//        LaunchedEffect(authUi.assignedRoles) {
+//            val newRoles = authUi.assignedRoles.toSet()
+//            if (newRoles != lastRoles) {
+//                lastRoles = newRoles
+//                navController.navigate(Screen.HomeDashboard.route) {
+//                    popUpTo(0)
+//                    launchSingleTop = true
+//                    restoreState = false
+//                }
+//            }
+//        }
+
+        // ✅ If roles change, also wait for graph before navigating
         LaunchedEffect(authUi.assignedRoles) {
-            val newRoles = authUi.assignedRoles.toSet()
-            if (newRoles != lastRoles) {
-                lastRoles = newRoles
-                navController.navigate(Screen.AdminDashboard.route) {
+            navController.currentBackStackEntryFlow.first()
+
+            val destination = navController.currentDestination?.route ?: return@LaunchedEffect
+            if (destination == "login") return@LaunchedEffect
+
+//            val isAllowedNow = when (destination) {
+//                "admin_dashboard" -> authUi.userRole == AssignedRole.ADMIN
+//                else -> true
+//            }
+            val isAllowedNow = when (destination) {
+                "admin_dashboard" -> authUi.canSeeAdminScreens
+                else -> true
+            }
+
+
+            if (!isAllowedNow) {
+                navController.navigate("dashboard") {
                     popUpTo(0)
                     launchSingleTop = true
-                    restoreState = false
                 }
             }
         }
@@ -101,8 +150,8 @@ fun ZionAppNavHost(
         // Guard admin-only screens if perms shrink
         LaunchedEffect(permsCanListUsers, destination?.route) {
             if (!permsCanListUsers && destination?.route in adminOnly) {
-                navController.navigate(Screen.AdminDashboard.route) {
-                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                navController.navigate(Screen.HomeDashboard.route) {
+                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                     launchSingleTop = true
                     restoreState = false
                 }
@@ -132,7 +181,7 @@ fun ZionAppNavHost(
                         SplashScreen(
                             toLogin = { navController.navigate(Screen.Login.route) },
                             toAdmin = {
-                                navController.navigate(Screen.AdminDashboard.route) {
+                                navController.navigate(Screen.HomeDashboard.route) {
                                     popUpTo(0); launchSingleTop = true; restoreState = false
                                 }
                             }
@@ -142,7 +191,7 @@ fun ZionAppNavHost(
 //                    composable(Screen.Login.route) {
 //                        LoginScreen(
 //                            toAdminDashboard = {
-//                                navController.navigate(Screen.AdminDashboard.route) {
+//                                navController.navigate(Screen.HomeDashboard.route) {
 //                                    popUpTo(0)
 //                                    launchSingleTop = true
 //                                    restoreState = false // ← do not restore prior session
@@ -153,7 +202,7 @@ fun ZionAppNavHost(
                     composable(Screen.Login.route) {
                         LoginScreen(
                             toAdminDashboard = {
-                                navController.navigate(Screen.AdminDashboard.route) {
+                                navController.navigate(Screen.HomeDashboard.route) {
                                     popUpTo(0)
                                     launchSingleTop = true
                                     restoreState = false
@@ -180,48 +229,86 @@ fun ZionAppNavHost(
                         }
                     }
 
-                    /** Admin Dashboard */
-                    composable(Screen.AdminDashboard.route) {
-                        AdminDashboardScreen(
+                    /** Home Dashboard */
+                    composable(Screen.HomeDashboard.route) {
+                        HomeDashboardScreen(
                             toChildrenList = {
                                 navController.navigate(Screen.ChildrenList.route) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toEventsList = {
                                 navController.navigate(Screen.EventsList.route) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toAccepted = {
                                 navController.navigate(Screen.ChildrenList.accepted(Reply.YES)) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toYetAccept = {
                                 navController.navigate(Screen.ChildrenList.accepted(Reply.NO)) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toResettled = {
                                 navController.navigate(Screen.ChildrenList.resettled(true)) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             },
                             toBeResettled = {
                                 navController.navigate(Screen.ChildrenList.resettled(false)) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
                             }
                         )
                     }
 
+
+                    /***
+                     * Admin dasboard
+                     */
+                    composable(Screen.AdminDashboard.route) {
+                        if (canManageQuestions) {
+                            AdminDashboardScreen(
+                                toMigrationToolKit = {
+                                    navController.navigate(Screen.Migration.route) {
+                                        popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                toUsersDashboard = {
+                                    navController.navigate(Screen.AdminUsers.route) {
+                                        popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                toQuestionBank = {
+
+                                    navController.navigate("question_bank") {
+                                        popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                toChildrenDashboard = {},
+                                toEventsDashboard = {},
+                                toAttendanceDashboard = {},
+                                toReportsDashboard = {
+
+                                },
+                                navigateUp = {}
+                            )
+                        } else {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+                    }
                     // Admin Users
                     composable(Screen.AdminUsers.route) {
                         if (permsCanListUsers) {
@@ -259,8 +346,8 @@ fun ZionAppNavHost(
                             )
                         } else {
                             LaunchedEffect(Unit) {
-                                navController.navigate(Screen.AdminDashboard.route) {
-                                    popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                                navController.navigate(Screen.HomeDashboard.route) {
+                                    popUpTo(Screen.HomeDashboard.route) { inclusive = true }
                                     launchSingleTop = true
                                     restoreState = false
                                 }
@@ -366,6 +453,82 @@ fun ZionAppNavHost(
                             },
                         )
                     }
+
+                    composable(Screen.QuestionBank.route) {
+                        if (canManageQuestions) {
+                            QuestionBankScreen(
+                                navigateUp = {
+                                    navController.navigate(Screen.AdminDashboard.route) {
+                                        popUpTo(Screen.QuestionBank.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                onAdd = {
+                                    navController.navigate(Screen.QuestionForm.newQuestion()){
+                                    popUpTo(Screen.QuestionBank.route) { inclusive = true }
+                                    launchSingleTop = true
+                                } },
+                                onEdit = { qid ->
+                                    navController.navigate(Screen.QuestionForm.edit(qid)){
+                                        popUpTo(Screen.QuestionBank.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    } }
+                            )
+                        } else {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+                    }
+
+                    composable("question_form") {
+                        if (canManageQuestions) {
+                            QuestionFormScreen(
+                                questionIdArg = null,
+                                navigateUp = {
+                                    navController.navigate(Screen.QuestionBank) {
+                                        popUpTo("question_form") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                             },
+                                onDone = {
+                                    navController.navigate("question_bank") {
+                                        popUpTo("question_form") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        } else {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+                    }
+
+                    composable(
+                        route = Screen.QuestionForm.route,
+                        arguments = listOf(
+                            navArgument("questionId") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
+                        )
+                    ) { backStackEntry ->
+                        if (canManageQuestions) {
+                            val qid = backStackEntry.arguments?.getString("questionId")
+                            QuestionFormScreen(
+                                questionIdArg = qid,
+                                navigateUp = { navController.popBackStack() },
+                                onDone = {
+                                    navController.navigate(Screen.QuestionBank.route) {
+                                        popUpTo(Screen.QuestionForm.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        } else {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+                    }
+
+
 
 
                     /** Children */
@@ -582,19 +745,18 @@ fun ZionAppNavHost(
                                 }
                             },
                             toQa = { childIdArg ->
-                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
-                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                navController.navigate(Screen.ChildAssessmentHistory.qa(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = false }
                                     launchSingleTop = true
                                 }
-
                             },
                             toObservations = { childIdArg ->
-                                navController.navigate(Screen.ChildDetails.createRoute(childIdArg)) {
-                                    popUpTo(Screen.ChildDashboard.route) { inclusive = true }
+                                navController.navigate(Screen.ChildAssessmentHistory.observations(childIdArg)) {
+                                    popUpTo(Screen.ChildDashboard.route) { inclusive = false }
                                     launchSingleTop = true
                                 }
-
                             },
+
                             navigateUp = {
                                 navController.navigate(Screen.ChildrenList.all()) {
                                     popUpTo(Screen.ChildDashboard.route) { inclusive = true }
@@ -604,6 +766,70 @@ fun ZionAppNavHost(
                             },
                         )
                     }
+
+                    composable(
+                        route = Screen.ChildAssessmentHistory.route,
+                        arguments = listOf(
+                            navArgument("childId") { type = NavType.StringType },
+                            navArgument("mode") { type = NavType.StringType; defaultValue = "ALL" }
+                        )
+                    ) { backStackEntry ->
+                        val childId = backStackEntry.arguments?.getString("childId") ?: return@composable
+                        val mode = backStackEntry.arguments?.getString("mode") ?: "ALL"
+
+                        ChildAssessmentHistoryScreen(
+                            childId = childId,
+                            mode = mode,
+                            navigateUp = {
+                                navController.navigate(Screen.ChildDashboard.view(childId)) {
+                                    popUpTo(Screen.ChildAssessmentHistory.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            onOpenSession = { generalId ->
+                                navController.navigate(Screen.ChildAssessmentDetail.open(childId, generalId, mode)) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onStartNew = { newGeneralId ->
+                                navController.navigate(Screen.ChildAssessmentDetail.open(childId, newGeneralId, mode)) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.ChildAssessmentDetail.route,
+                        arguments = listOf(
+                            navArgument("childId") { type = NavType.StringType },
+                            navArgument("generalId") { type = NavType.StringType },
+                            navArgument("mode") { type = NavType.StringType; defaultValue = "ALL" }
+                        )
+                    ) { backStackEntry ->
+                        val childId = backStackEntry.arguments?.getString("childId") ?: return@composable
+                        val generalId = backStackEntry.arguments?.getString("generalId") ?: return@composable
+                        val mode = backStackEntry.arguments?.getString("mode") ?: "ALL"
+
+                        ChildAssessmentDetailScreen(
+                            childId = childId,
+                            generalId = generalId,
+                            mode = mode,
+                            navigateUp = {
+                                val backRoute = when (mode) {
+                                    "QA" -> Screen.ChildAssessmentHistory.qa(childId)
+                                    "OBS" -> Screen.ChildAssessmentHistory.observations(childId)
+                                    else -> Screen.ChildAssessmentHistory.all(childId)
+                                }
+                                navController.navigate(backRoute) {
+                                    popUpTo(Screen.ChildAssessmentDetail.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+
+                        )
+                    }
+
 
 
 

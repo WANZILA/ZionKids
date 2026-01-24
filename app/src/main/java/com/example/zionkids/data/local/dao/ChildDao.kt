@@ -33,6 +33,9 @@ interface ChildDao {
     @Query("SELECT * FROM children WHERE childId = :id LIMIT 1")
     fun observeById(id: String): Flow<Child?>
 
+    @Query("SELECT * FROM children")
+    fun streamAllAdmin(): Flow<List<Child>>
+
     // -------- List/Flow helpers for repository --------
     // /// CHANGED: new helpers that power offline-first repository reads
     @Query("SELECT * FROM children WHERE isDeleted = 0 ORDER BY updatedAt DESC")

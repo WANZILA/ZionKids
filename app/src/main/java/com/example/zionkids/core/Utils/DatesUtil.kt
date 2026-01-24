@@ -1,19 +1,21 @@
 package com.example.zionkids.core.utils
 
-import android.os.Build
-import androidx.annotation.RequiresApi
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
-//object DatesUtils {
-//    @RequiresApi(Build.VERSION_CODES.O)
-//    private val DISPLAY_DATE_FMT: DateTimeFormatter =
-//        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+object DatesUtils {
 
-//    @RequiresApi(Build.VERSION_CODES.O)
-//    fun formatDate(millis: Long, zone: ZoneId = ZoneId.systemDefault()): String {
-//        return Instant.ofEpochMilli(millis).atZone(zone).format(DISPLAY_DATE_FMT)
-//    }
-//}
+    fun Timestamp.asHuman(): String {
+        val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
+        return sdf.format(toDate())
+    }
+
+    fun Long.asHuman(): String {
+        // this Long is nanosSinceEpoch (per TimestampConverters)
+        val seconds = this / 1_000_000_000L
+        val nanos = (this % 1_000_000_000L).toInt()
+        return Timestamp(seconds, nanos).asHuman()
+    }
+}

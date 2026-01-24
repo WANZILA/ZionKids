@@ -146,12 +146,13 @@ class ZionKidsApp : Application(), Configuration.Provider {
 // CHANGED: pull immediately once at startup
 //        ChildrenSyncScheduler.enqueuePushNow(this)
         // DEBUG: run immediately so you see logs / data hydration now
-        ChildrenSyncScheduler.enqueuePullNow(this)
+//        ChildrenSyncScheduler.enqueuePullNow(this)
         CleanerScheduler.enqueuePeriodic(this, retentionDays = 30L)
 //        CleanerScheduler.enqueueNow(appContext)
-        SyncCoordinatorScheduler.enqueuePullAllPeriodic(this, cleanerRetentionDays = 30L)
         SyncCoordinatorScheduler.enqueuePushAllNow(this, cleanerRetentionDays = 30L)
+        SyncCoordinatorScheduler.enqueuePullAllNow(this, cleanerRetentionDays = 30L)
 
+        SyncCoordinatorScheduler.enqueuePullAllPeriodic(this, cleanerRetentionDays = 30L)
         SyncCoordinatorScheduler.enqueuePushAllPeriodic(this, cleanerRetentionDays = 30L)
 
 

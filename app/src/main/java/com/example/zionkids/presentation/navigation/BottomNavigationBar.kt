@@ -54,7 +54,7 @@ fun BottomNavigationBar(
     val currentDestination = backStackEntry?.destination
 
     val primary = listOf(
-        Screen.AdminDashboard,
+        Screen.HomeDashboard,
         Screen.ChildrenDashboard,
         Screen.EventsDashboard
     )
@@ -63,11 +63,12 @@ fun BottomNavigationBar(
     val overflow = buildList {
 
         if (canListUsers) {
-            add(Screen.Migration)
-            add(Screen.AdminUsers)
-            add(Screen.ReportsDashboard)
-            add(Screen.TechnicalSkillsDashboard)
-            add(Screen.StreetsDashboard)
+//            add(Screen.Migration)
+//            add(Screen.AdminUsers)
+//            add(Screen.ReportsDashboard)
+//            add(Screen.TechnicalSkillsDashboard)
+//            add(Screen.StreetsDashboard)
+            add(Screen.AdminDashboard)
 
         }
         add(Screen.AttendanceDashboard)
@@ -107,7 +108,7 @@ fun BottomNavigationBar(
                     ) {
                         Icon(
                             imageVector = when (screen) {
-                                is Screen.AdminDashboard -> Icons.Filled.Home
+                                is Screen.HomeDashboard -> Icons.Filled.Home
                                 is Screen.ChildrenDashboard -> Icons.Filled.Person
                                 is Screen.EventsDashboard -> Icons.Filled.AddTask
                                 else -> Icons.Filled.AccountBalance
@@ -173,11 +174,12 @@ fun BottomNavigationBar(
                             leadingIcon = {
                                 Icon(
                                     imageVector = when (screen) {
-                                        is Screen.Migration -> Icons.Filled.Outbox
-                                        is Screen.AdminUsers -> Icons.Filled.Person
-                                        is Screen.ReportsDashboard -> Icons.Filled.Home
-                                        is Screen.StreetsDashboard -> Icons.Filled.AccountBalance
-                                        is Screen.TechnicalSkillsDashboard -> Icons.Filled.PanTool
+                                        is Screen.AdminDashboard -> Icons.Filled.Person
+//                                        is Screen.Migration -> Icons.Filled.Outbox
+//                                        is Screen.AdminUsers -> Icons.Filled.Person
+//                                        is Screen.ReportsDashboard -> Icons.Filled.Home
+//                                        is Screen.StreetsDashboard -> Icons.Filled.AccountBalance
+//                                        is Screen.TechnicalSkillsDashboard -> Icons.Filled.PanTool
                                         is Screen.AttendanceDashboard -> Icons.Filled.PeopleAlt
                                         else -> Icons.Filled.DoDisturbOff
                                     },

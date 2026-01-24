@@ -16,6 +16,17 @@ data class UserProfile(
     val updatedAt: Timestamp = Timestamp.now()
 )
 
+object AuthUid {
+    fun requireUid(): String {
+        return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: error("User not signed in")
+    }
+}
+
+val UserProfile.isAdmin: Boolean get() = userRole == AssignedRole.ADMIN
+val UserProfile.isLeader: Boolean get() = userRole == AssignedRole.LEADER
+val UserProfile.canSeeAdminScreens: Boolean get() = isAdmin || isLeader
+
 /***
  * Permissions we’ll use (simple & practical)
  *

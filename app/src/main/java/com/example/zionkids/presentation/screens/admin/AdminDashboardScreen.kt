@@ -1,132 +1,217 @@
 package com.example.zionkids.presentation.screens.admin
 
-import android.content.pm.ApplicationInfo
-import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Text
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zionkids.R
-import com.example.zionkids.data.model.Event
-import com.example.zionkids.presentation.components.action.ZionKidAppTopBar
-//import com.example.zionkids.presentation.screens.admin.StatCard
-//import com.example.zionkids.presentation.screens.children.StatCard
-import com.google.firebase.Firebase
-import java.text.SimpleDateFormat
-import java.util.*
-import com.google.firebase.Timestamp
-import com.google.firebase.crashlytics.crashlytics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
-    toChildrenList: () -> Unit,
-    toEventsList: () -> Unit,
-    toAccepted: () -> Unit,
-    toYetAccept: () -> Unit,
-    toResettled: () -> Unit,
-    toBeResettled: () -> Unit,
+    toMigrationToolKit: () -> Unit,
+    toUsersDashboard: () -> Unit,
+    toQuestionBank: () -> Unit,
+    toChildrenDashboard: () -> Unit,
+    toEventsDashboard: () -> Unit,
+    toAttendanceDashboard: () -> Unit,
+    toReportsDashboard: () -> Unit,
     vm: AdminDashboardViewModel = hiltViewModel(),
-//    authViewModel: AuthViewModel = hiltViewModel()
+    modifier: Modifier = Modifier,
+    canNavigateBack: Boolean = false,
+    navigateUp: (() -> Unit)? = null
 ) {
     val ui by vm.ui.collectAsState()
-
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor   = MaterialTheme.colorScheme.onBackground,
         topBar = {
-            ZionKidAppTopBar(
-                canNavigateBack = false,
-                navigateUp = { /* no-op on home */ },
-                txtLabel = stringResource(R.string.home),
+            CenterAlignedTopAppBar(
+                title = { Text("Admin Dashboard") },
+                navigationIcon = {
+                    // Keep minimal — only show if caller wires it
+                    if (canNavigateBack && navigateUp != null) {
+                        // You can swap this with your existing ZionKids topbar component if you have one
+                        Text(
+                            text = "Back",
+                            modifier = Modifier
+                                .padding(start = 16.dp)
+                                .clickable { navigateUp() },
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             )
         },
-    ) { inner ->
-        when {
-            ui.loading -> Box(
-                Modifier
-                    .padding(inner)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { pad ->
 
-            ui.error != null -> Box(
-                Modifier
-                    .padding(inner)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) { Text("Error: ${ui.error}", color = MaterialTheme.colorScheme.error) }
+        Column(
+            modifier = modifier
+                .padding(pad)
+                .padding(12.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            when {
+                ui.isLoading -> LoadingSpinner()
 
-            else -> LazyColumn(
-                modifier = Modifier
-                    .padding(inner)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // KPI rows
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Total", ui.childrenTotal.toString(), Modifier.weight(1f), onClick = toChildrenList)
-                        StatCard("New This Month", ui.childrenNewThisMonth.toString(), Modifier.weight(1f))
-                       }
-                }
+                ui.error != null -> ErrorMessage(
+                    message = ui.error ?: "An error occurred",
+                    onRetry = vm::refresh
+                )
 
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Graduated", ui.childrenGraduated.toString(), Modifier.weight(1f))
-//                        StatCard("Sponsored", ui.sponsored.toString(), Modifier.weight(1f))
-                    }
-                }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("Accepted Christ", ui.acceptedChrist.toString(),  onClick = toAccepted,
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatCard("Yet to Accept", ui.yetToAcceptChrist.toString(), onClick = toYetAccept,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
 
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                         StatCard("Resettled", ui.resettled.toString(), onClick = toResettled , modifier = Modifier.weight(1f))
-                         StatCard("To Resettle", ui.toBeResettled.toString(),onClick = toBeResettled , modifier =  Modifier.weight(1f))
+                        // --- Row 1 (Admin actions) ---
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ZionDashboardCard(
+                                title = "🚚 Migration ToolKit",
+                                value = "",
+                                modifier = Modifier.weight(1f),
+                                onClick = toMigrationToolKit
+                            )
 
-//                         StatCard("Events Today", ui.eventsToday.toString(), Modifier.weight(1f), onClick = toEventsList)
-
-                    }
-                }
-//                item {
-//                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-//                        StatCard("Active Now", ui.eventsActiveNow.toString(), Modifier.weight(1f))
-//                    }
-//                }
-//item{
-//    CrashlyticsTestScreen()
-//}
-
-                // Happening Today
-                item {
-                    SectionCard("Happening Today") {
-                        if (ui.happeningToday.isEmpty()) {
-                            Text("No events today.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ui.happeningToday.forEach { e ->
-                                    EventRowSmall(e, onOpen = toEventsList)
-                                }
-                            }
+                            ZionDashboardCard(
+                                title = "👥 Users Dashboard",
+                                value = "",
+                                modifier = Modifier.weight(1f),
+                                onClick = toUsersDashboard
+                            )
                         }
+
+                        // --- Row 2 (Question Bank + Reports) ---
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ZionDashboardCard(
+                                title = "🧠 Question Bank",
+                                value = "${ui.questionsActive}/${ui.questionsTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = toQuestionBank
+                            )
+
+                            ZionDashboardCard(
+                                title = "📊 Reports",
+                                value = "",
+                                modifier = Modifier.weight(1f),
+                                onClick = toReportsDashboard
+                            )
+                        }
+
+                        // --- Row 3 (Core modules) ---
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ZionDashboardCard(
+                                title = "👧 Children",
+                                value = "${ui.childrenTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = toChildrenDashboard
+                            )
+
+                            ZionDashboardCard(
+                                title = "📅 Events",
+                                value = "${ui.eventsTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = toEventsDashboard
+                            )
+                        }
+
+                        // --- Row 4 (Attendance + Assessments) ---
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ZionDashboardCard(
+                                title = "✅ Attendance",
+                                value = "${ui.attendanceTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = toAttendanceDashboard
+                            )
+
+                            ZionDashboardCard(
+                                title = "📝 Assessments",
+                                value = "${ui.assessmentSessionsTotal} sessions",
+                                modifier = Modifier.weight(1f),
+                                onClick = { /* optional: later route to assessments admin */ }
+                            )
+                        }
+
+                        // --- Row 5 (Sync health) ---
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ZionDashboardCard(
+                                title = "☁️ Pending Sync",
+                                value = "${ui.dirtyTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = { /* optional: later screen showing dirty rows */ }
+                            )
+
+                            ZionDashboardCard(
+                                title = "🗑️ Deleted (pending)",
+                                value = "${ui.deletedPendingTotal}",
+                                modifier = Modifier.weight(1f),
+                                onClick = { /* optional: later screen */ }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (ui.isEmpty) {
+                            Text(
+                                text = "No data yet — add children/events, seed Question Bank, and start recording attendance & assessments.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Tip: Keep Question Bank clean (category/subCategory/indexNum) to make assessment seeding consistent.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -134,123 +219,53 @@ fun AdminDashboardScreen(
     }
 }
 
-/* ---------- Reusable bits ---------- */
-
 @Composable
-private fun StatCard(
+private fun ZionDashboardCard(
     title: String,
     value: String,
     modifier: Modifier = Modifier,
-    sub: String = "",
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
     ElevatedCard(
-        modifier = modifier,
-        onClick = { onClick?.invoke() },
-        enabled = onClick != null
+        modifier = modifier
+            .clickable { onClick() }
     ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (sub.isNotBlank()) {
-                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    ElevatedCard {
-        Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.padding(14.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun EventRowSmall(event: Event, onOpen: () -> Unit) {
-    ElevatedCard(onClick = onOpen) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    event.title.ifBlank { "Untitled Event" },
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    event.eventDate.asTimeAndDate(), // Timestamp → formatted string
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (event.location.isNotBlank()) {
-                    Text(
-                        event.location,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            if (value.isNotBlank()) {
+                Text(value, style = MaterialTheme.typography.headlineSmall)
+            } else {
+                Text("Open", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            AssistChip(onClick = onOpen, label = { Text(event.eventStatus.name.first().toString()) })
         }
     }
 }
 
-/* ---------- Timestamp formatting ---------- */
-
-private fun Timestamp.asTimeAndDate(): String {
-    val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
-    return sdf.format(this.toDate()) // uses the device's locale/timezone
+@Composable
+private fun LoadingSpinner() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
 }
-
-// (Optional: keep the Long version if you still use it elsewhere)
-private fun Long.asTimeAndDate(): String {
-    val sdf = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
-    return sdf.format(Date(this))
-}
-
 
 @Composable
-fun CrashlyticsTestScreen() {
-    val ctx = LocalContext.current
+private fun ErrorMessage(
+    message: String,
+    onRetry: () -> Unit
+) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Crashlytics Diagnostics", style = MaterialTheme.typography.titleLarge)
-
-        Button(onClick = {
-            Firebase.crashlytics.setCustomKey("screen", "CrashlyticsTestScreen")
-//            Firebase.crashlytics.setCustomKey("build_type", BuildConfig.BUILD_TYPE)
-            Firebase.crashlytics.log("About to throw a test RuntimeException")
-                        // Derive build type without BuildConfig
-                        val appInfo = ctx.applicationContext.applicationInfo
-                        val isDebug = (appInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                        val buildType = if (isDebug) "debug" else "release"
-                        Firebase.crashlytics.setCustomKey("build_type", buildType)
-            // FATAL (app will crash)
-            throw RuntimeException("🔥 Test crash from CrashlyticsTestScreen")
-        }) { Text("Force FATAL crash") }
-
-        Button(onClick = {
-            val e = IllegalStateException("🤕 Test NON-FATAL exception")
-            Firebase.crashlytics.recordException(e)
-            Toast.makeText(ctx, "Recorded non-fatal", Toast.LENGTH_SHORT).show()
-        }) { Text("Record NON-FATAL") }
-
-        Button(onClick = {
-            Firebase.crashlytics.log("Breadcrumb: tapped breadcrumb button")
-            Toast.makeText(ctx, "Breadcrumb logged", Toast.LENGTH_SHORT).show()
-        }) { Text("Log breadcrumb") }
+        Text(text = message, color = MaterialTheme.colorScheme.error)
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onRetry) { Text("Retry") }
     }
 }

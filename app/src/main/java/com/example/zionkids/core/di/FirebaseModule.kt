@@ -24,10 +24,6 @@ object FirestoreModule {
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
 
-    // core/di/FirebaseModule.kt
-//    @Provides @Singleton
-//    fun provideAuth(): FirebaseAuth = FirebaseAuth.getInstance()
-
     @Provides
     @Singleton
     fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -128,6 +124,7 @@ object FirestoreModule {
     fun provideLockedAccountsCollection(db: FirebaseFirestore): CollectionReference =
         db.collection("authAttempts")
 
+
     @Provides
     @Singleton
     @TechnicalSkills
@@ -141,60 +138,22 @@ object FirestoreModule {
     fun provideStreetCollection(db: FirebaseFirestore): CollectionReference =
         db.collection("streets")
 
+    @Provides
+    @Singleton
+    @AssessmentQuestionsRef
+    fun provideAssessmentQuestionsRef(firestore: FirebaseFirestore): CollectionReference =
+        firestore.collection("assessment_questions")
+
+    @Provides
+    @Singleton
+    @AssessmentAnswersRef // ✅ CHANGED (was @AssessmentQuestionsRef)
+    fun provideAssessmentAnswersRef(firestore: FirebaseFirestore): CollectionReference =
+        firestore.collection("assessment_answers")
 //    @Provides
 //    @Singleton
-//    fun provideSyncCoordinatorScheduler(): SyncCoordinatorScheduler = SyncCoordinatorScheduler
+//    @AssessmentQuestionsRef
+//    fun provideAssessmentAnswersRef(firestore: FirebaseFirestore): CollectionReference =
+//        firestore.collection("assessment_answers")
 
 
 }
-
-//package com.example.zionkids.core.di
-//// com/example/zionkids/core/di/FirestoreModule.kt
-////package com.example.zionkids.core.di
-//
-//import com.google.firebase.firestore.CollectionReference
-//import com.google.firebase.firestore.FirebaseFirestore
-//import com.google.firebase.firestore.ktx.firestore
-//import dagger.Module
-//import dagger.Provides
-//import dagger.hilt.InstallIn
-//import dagger.hilt.components.SingletonComponent
-//import javax.inject.Singleton
-//
-//@Module
-//@InstallIn(SingletonComponent::class)
-//object FirestoreModule {
-//
-//    @Provides
-//    @Singleton
-//    fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance() // or Firebase.firestore
-//
-//    @Provides
-//    @Singleton
-//    @ChildrenRef
-//    fun provideChildrenCollection(db: FirebaseFirestore): CollectionReference =
-//        db.collection("children")
-//
-//    @Provides
-//    @Singleton
-//    @EventsRef
-//    fun provideEventsCollection(db: FirebaseFirestore): CollectionReference =
-//        db.collection("events")
-//}
-//
-////import com.google.firebase.firestore.FirebaseFirestore
-////import dagger.Module
-////import dagger.Provides
-////import dagger.hilt.InstallIn
-////import dagger.hilt.components.SingletonComponent
-////import javax.inject.Singleton
-////
-////@Module
-////@InstallIn(SingletonComponent::class)
-////object FirebaseModule {
-////
-////    @Provides
-////    @Singleton
-////    fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
-////}
-//
