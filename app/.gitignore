@@ -1,1 +1,7 @@
 /build
+
+# Secrets
+seed/serviceAccount.json
+seed/for default data/serviceAccount2.json
+.kotlin/
+git rm --cached -- "seed/serviceAccount.json"
